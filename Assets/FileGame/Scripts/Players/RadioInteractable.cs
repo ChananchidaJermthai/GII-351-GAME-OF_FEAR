@@ -12,7 +12,7 @@ public class RadioInteractable : MonoBehaviour
     public float customSeconds = 10f;
 
     [Header("UI Prompt")]
-    public string promptText = "กด Interact เพื่อเลือกเทป";
+    public string promptText = "Press E Interact to select tape.";
 
     void Reset()
     {

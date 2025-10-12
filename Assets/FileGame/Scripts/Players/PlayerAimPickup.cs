@@ -62,7 +62,7 @@ public class PlayerAimPickup : MonoBehaviour
 #if TMP_PRESENT || UNITY_2021_1_OR_NEWER
         if (promptText)
         {
-            if (itemTarget) promptText.text = $"กด Interact เก็บ {itemTarget.itemId} x{itemTarget.amount}";
+            if (itemTarget) promptText.text = $" Press E Get {itemTarget.itemId} x {itemTarget.amount} ";
             else if (radioTarget) promptText.text = radioTarget.promptText;
             else promptText.text = "";
         }
