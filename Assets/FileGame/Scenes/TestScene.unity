@@ -435,17 +435,17 @@ MonoBehaviour:
   audioSource: {fileID: 140243527}
   tapes:
   - tapeKeyId: Tape1
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: 67faec15164804546a55d7a34ac0c5a7, type: 3}
     effect: 1
     amountPerSecond: 20
     displayName: 
   - tapeKeyId: Tape2
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: 67faec15164804546a55d7a34ac0c5a7, type: 3}
     effect: 0
     amountPerSecond: 20
     displayName: 
   - tapeKeyId: Tape3
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: 67faec15164804546a55d7a34ac0c5a7, type: 3}
     effect: 2
     amountPerSecond: 10
     displayName: 
