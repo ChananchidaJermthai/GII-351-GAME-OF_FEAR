@@ -72,7 +72,7 @@ using UnityEngine.InputSystem.Utilities;
 /// }
 /// </code>
 /// </example>
-public partial class @Gameplay: IInputActionCollection2, IDisposable
+public partial class @Gameplay1: IInputActionCollection2, IDisposable
 {
     /// <summary>
     /// Provides access to the underlying asset instance.
@@ -82,7 +82,7 @@ public partial class @Gameplay: IInputActionCollection2, IDisposable
     /// <summary>
     /// Constructs a new instance.
     /// </summary>
-    public @Gameplay()
+    public @Gameplay1()
     {
         asset = InputActionAsset.FromJson(@"{
     ""version"": 1,
@@ -336,6 +336,28 @@ public partial class @Gameplay: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Joystick"",
+                    ""action"": ""Look"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""86e78364-f10d-4d81-a30e-551ab0060de9"",
+                    ""path"": ""<Mouse>/delta"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Look"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""cf5c3bbc-ba92-4374-9536-ec0b2a65e0d4"",
+                    ""path"": ""<VirtualMouse>/delta"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Look"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -1178,10 +1200,10 @@ public partial class @Gameplay: IInputActionCollection2, IDisposable
         m_UI_TrackedDeviceOrientation = m_UI.FindAction("TrackedDeviceOrientation", throwIfNotFound: true);
     }
 
-    ~@Gameplay()
+    ~@Gameplay1()
     {
-        UnityEngine.Debug.Assert(!m_Player.enabled, "This will cause a leak and performance issues, Gameplay.Player.Disable() has not been called.");
-        UnityEngine.Debug.Assert(!m_UI.enabled, "This will cause a leak and performance issues, Gameplay.UI.Disable() has not been called.");
+        UnityEngine.Debug.Assert(!m_Player.enabled, "This will cause a leak and performance issues, Gameplay1.Player.Disable() has not been called.");
+        UnityEngine.Debug.Assert(!m_UI.enabled, "This will cause a leak and performance issues, Gameplay1.UI.Disable() has not been called.");
     }
 
     /// <summary>
@@ -1271,12 +1293,12 @@ public partial class @Gameplay: IInputActionCollection2, IDisposable
     /// </summary>
     public struct PlayerActions
     {
-        private @Gameplay m_Wrapper;
+        private @Gameplay1 m_Wrapper;
 
         /// <summary>
         /// Construct a new instance of the input action map wrapper class.
         /// </summary>
-        public PlayerActions(@Gameplay wrapper) { m_Wrapper = wrapper; }
+        public PlayerActions(@Gameplay1 wrapper) { m_Wrapper = wrapper; }
         /// <summary>
         /// Provides access to the underlying input action "Player/Move".
         /// </summary>
@@ -1456,12 +1478,12 @@ public partial class @Gameplay: IInputActionCollection2, IDisposable
     /// </summary>
     public struct UIActions
     {
-        private @Gameplay m_Wrapper;
+        private @Gameplay1 m_Wrapper;
 
         /// <summary>
         /// Construct a new instance of the input action map wrapper class.
         /// </summary>
-        public UIActions(@Gameplay wrapper) { m_Wrapper = wrapper; }
+        public UIActions(@Gameplay1 wrapper) { m_Wrapper = wrapper; }
         /// <summary>
         /// Provides access to the underlying input action "UI/Navigate".
         /// </summary>
