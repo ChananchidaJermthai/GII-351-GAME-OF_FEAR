@@ -97,7 +97,10 @@ public class PlayerControllerTest : MonoBehaviour
     float _currentTargetVol = 0f;
     float _fadeVel = 0f;
 
-    // ---------- PUBLIC PROPERTIES (ให้สคริปต์อื่นเรียกใช้) ----------
+    // === FIX จมพื้น: ล็อกก้นแคปซูลให้คงที่ ===
+    float _capsuleBottomLocalY; // ค่าก้น (local) ของ CharacterController ตั้งแต่เริ่มเกม
+
+    // ---------- PUBLIC PROPERTIES ----------
     public bool IsSprinting => _isSprinting;
     public bool IsCrouching => _isCrouching;
     public float CurrentSpeedXZ => new Vector3(_cc.velocity.x, 0f, _cc.velocity.z).magnitude;
@@ -127,12 +130,13 @@ public class PlayerControllerTest : MonoBehaviour
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
 
+        // เก็บก้นแคปซูลไว้จากค่าเริ่มต้น (center/height จาก Inspector)
+        _capsuleBottomLocalY = _cc.center.y - (_cc.height * 0.5f);
+
         _stamina = staminaMax;
         _sanity = Mathf.Clamp(sanityStart, 0f, sanityMax);
 
-        _cc.height = standHeight;
-        var c = _cc.center; c.y = _cc.height * 0.5f; _cc.center = c;
-
+        // ไม่ตั้ง center = height*0.5f ตรง ๆ อีกแล้ว (ปล่อยตาม Inspector)
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
@@ -177,9 +181,14 @@ public class PlayerControllerTest : MonoBehaviour
         _verticalVel = _cc.isGrounded ? stickToGroundForce : _verticalVel + gravity * Time.deltaTime;
         Vector3 motion = horizontalVel + Vector3.up * _verticalVel;
 
-        float targetHeight = _isCrouching ? crouchHeight : standHeight;
+        // ====== FIX จมพื้น: ปรับความสูงด้วย Lerp และคำนวณ center ใหม่จาก "ก้นคงที่" ======
+        float targetHeight = Mathf.Max(_cc.radius * 2f + 0.01f, _isCrouching ? crouchHeight : standHeight);
         _cc.height = Mathf.Lerp(_cc.height, targetHeight, Time.deltaTime * heightLerpSpeed);
-        var center = _cc.center; center.y = _cc.height * 0.5f; _cc.center = center;
+
+        var c = _cc.center;
+        c.y = _capsuleBottomLocalY + (_cc.height * 0.5f);
+        _cc.center = c;
+        // ===============================================================================
 
         _cc.Move(motion * Time.deltaTime);
 
@@ -385,5 +394,17 @@ public class PlayerControllerTest : MonoBehaviour
     void UpdateStaminaUI()
     {
         if (staminaText) staminaText.text = $"Stamina: {Mathf.RoundToInt(_stamina)}/{Mathf.RoundToInt(staminaMax)}";
+    }
+
+    void OnValidate()
+    {
+        if (!_cc) _cc = GetComponent<CharacterController>();
+        if (_cc)
+        {
+            // กันตั้งค่าความสูงต่ำกว่ารัศมี*2
+            float minH = Mathf.Max(0.1f, _cc.radius * 2f + 0.01f);
+            standHeight = Mathf.Max(standHeight, minH);
+            crouchHeight = Mathf.Max(crouchHeight, minH);
+        }
     }
 }
