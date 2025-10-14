@@ -1,17 +1,24 @@
 ﻿using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
+[DisallowMultipleComponent]
 public class PlayerController3D : MonoBehaviour
 {
+    // ------------------- References -------------------
     [Header("References")]
-    [Tooltip("วาง Empty ชื่อ CameraHolder สูงระดับสายตา แล้วใส่ Main Camera เป็นลูกของมัน")]
-    public Transform cameraHolder;        // จุดหมุนกล้อง (หัว)
-    [Tooltip("วางใกล้ๆ เท้า ใช้เช็คพื้น (ถ้าเว้นว่างจะคำนวณจาก CharacterController)")]
+    [Tooltip("หัวกล้อง/ตำแหน่งสายตา (ใส่ CameraHolder)")]
+    public Transform cameraHolder;
+    [Tooltip("จุดเช็คพื้น (ไม่ใส่จะคำนวณอัตโนมัติจาก CharacterController)")]
     public Transform groundCheck;
-    public LayerMask groundMask = ~0;     // เลเยอร์ที่ถือว่าเป็นพื้น/สิ่งกีดขวาง
+    public LayerMask groundMask = ~0;
 
+    [Header("Animator (optional)")]
+    public Animator animator; // Speed(float) / IsGrounded(bool) / IsRun(bool) / IsCrouch(bool) / yVelocity(float)
+
+    // ------------------- Movement -------------------
     [Header("Move Speeds (m/s)")]
     public float walkSpeed = 3.5f;
     public float runSpeed = 6.5f;
@@ -20,68 +27,97 @@ public class PlayerController3D : MonoBehaviour
     public float deceleration = 14f;
 
     [Header("Jump & Gravity")]
-    public float jumpHeight = 1.2f;       // เมตร
-    public float gravity = -20f;          // ติดลบ
+    public float jumpHeight = 1.2f;  // meters
+    public float gravity = -20f;
     public float groundedRememberTime = 0.12f; // coyote time
 
-    [Header("Crouch (ตัวละคร + กล้องลงตาม)")]
-    [Tooltip("true = กดค้างเพื่อย่อ, false = กดสลับโหมดย่อ/ยืน")]
+    [Header("Crouch (ตัวละคร + กล้องย่อตาม)")]
     public bool holdToCrouch = true;
     public float standHeight = 1.8f;
     public float crouchHeight = 1.0f;
     public float heightLerpSpeed = 12f;
-    [Tooltip("ตำแหน่งสายตาตอนยืน (local Y ของ CameraHolder)")]
     public float standCameraY = 1.6f;
-    [Tooltip("ตำแหน่งสายตาตอนย่อ (local Y ของ CameraHolder)")]
     public float crouchCameraY = 1.0f;
     public float cameraLerpSpeed = 10f;
-    public float headClearCheckRadius = 0.2f;   // เช็คหัวชนเพดานตอนจะลุก
+    public float headClearCheckRadius = 0.2f;
 
-    [Header("Mouse Look (FPS)")]
-    public float mouseSensitivity = 200f; // องศา/วินาที
-    public float pitchClamp = 85f;        // จำกัดก้ม/เงย
+    [Header("FPS Look")]
+    public float mouseSensitivity = 200f; // deg/sec
+    public float pitchClamp = 85f;
 
-    [Header("Animator (optional)")]
-    public Animator animator;             // Speed(float), IsGrounded(bool), IsRun(bool), IsCrouch(bool), yVelocity(float)
+    // ------------------- Stamina / Sprint -------------------
+    [Header("Stamina")]
+    public float staminaMax = 100f;
+    public float staminaDrainRunPerSec = 20f;
+    public float staminaDrainJump = 12f;
+    public float staminaRegenPerSec = 18f;
+    public float staminaRegenDelay = 0.75f;
+    public float minStaminaToStartSprint = 15f;
 
-    // -------- internal state --------
+    // ------------------- Footstep -------------------
+    [Header("Footstep")]
+    public AudioSource footstepSource;
+    public AudioClip[] walkSteps;
+    public AudioClip[] runSteps;
+    public AudioClip[] crouchSteps;
+    [Tooltip("เวลาขั้นต่ำระหว่างเสียง (กันติดสแปม)")]
+    public float footstepMinInterval = 0.1f;
+    [Tooltip("ระยะก้าว (หน่วยเมตร) – เดินจะยิงเมื่อเคลื่อนที่เกินค่านี้")]
+    public float stepDistanceWalk = 1.8f;
+    public float stepDistanceRun = 2.2f;
+    public float stepDistanceCrouch = 1.6f;
+    public Vector2 stepPitchRange = new Vector2(0.95f, 1.05f);
+    public Vector2 stepVolRange = new Vector2(0.65f, 0.95f);
+
+    // ------------------- Use Item -------------------
+    [Header("Use Item")]
+    public UnityEvent onUseItem;               // ผูกกับ Inventory/ไอเทมภายนอกใน Inspector
+    [Tooltip("ถ้าเปิด จะ Raycast หาของที่เล็งไว้และเรียก IUsable.Use()")]
+    public bool raycastUse = true;
+    public float useDistance = 3.0f;
+    public LayerMask useLayerMask = ~0;
+
+    // ------------------- Internals -------------------
     CharacterController controller;
     PlayerInput playerInput;
 
-    // InputActions (อ่านตามชื่อ)
-    InputAction moveAction, lookAction, jumpAction, runAction, crouchAction;
+    // Input actions
+    InputAction moveAction, lookAction, jumpAction, runAction, crouchAction, useItemAction;
 
-    Vector2 moveInput;        // จาก Move
-    Vector2 lookInput;        // จาก Look (Mouse Delta / Right Stick)
-    bool runHeld;             // จาก Run (hold)
-    bool crouchHeldOrToggled; // จาก Crouch (hold/toggle)
-    bool jumpPressed;         // single-frame consume
-
-    Vector3 velocity;         // x/z แนวนอน, y แรงโน้มถ่วง/กระโดด
+    // move state
+    Vector2 moveInput;
+    Vector2 lookInput;
+    bool runHeld;
+    bool crouchHeldOrToggled;
+    bool jumpPressed;
     bool isGrounded;
     float groundedTimer;
-
     bool isRunning;
     bool isCrouching;
     float currentSpeed;
     float desiredHeight;
     float originalCenterY;
+    Vector3 velocity; // includes gravity
 
-    float yaw;    // หมุนแกน Y ของตัวละคร (ซ้าย/ขวา)
-    float pitch;  // หมุนแกน X ของกล้อง (ก้ม/เงย)
+    // camera look
+    float yaw;
+    float pitch;
+
+    // stamina
+    float stamina;
+    float lastSprintOrJumpTime;
+
+    // footsteps
+    float stepAccumulator; // accumulate distance moved
+    float lastFootTime;
 
     const float groundCheckRadius = 0.25f;
 
-    // ------------- Unity -------------
+    // ------------------- Unity -------------------
     void Awake()
     {
         controller = GetComponent<CharacterController>();
         playerInput = GetComponent<PlayerInput>();
-
-        if (!cameraHolder)
-        {
-            Debug.LogWarning("[CombinedFPSController] ไม่ได้ตั้ง cameraHolder — กรุณาลาก Transform ของ CameraHolder มาวางใน Inspector");
-        }
 
         if (standHeight <= 0f) standHeight = controller.height;
         if (crouchHeight <= 0f || crouchHeight >= standHeight)
@@ -90,38 +126,40 @@ public class PlayerController3D : MonoBehaviour
         desiredHeight = controller.height;
         originalCenterY = controller.center.y;
 
-        // ล็อกเมาส์แบบ FPS
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // เริ่มต้นมุมกล้องตามค่าเริ่มต้น
         if (cameraHolder)
         {
             Vector3 e = cameraHolder.localEulerAngles;
             pitch = e.x;
         }
         yaw = transform.eulerAngles.y;
+
+        stamina = staminaMax; // start full
     }
 
     void OnEnable()
     {
-        var actions = playerInput.actions;
-        moveAction = actions["Move"];
-        lookAction = actions["Look"];
-        jumpAction = actions["Jump"];
-        runAction = actions["Run"];
-        crouchAction = actions["Crouch"];
+        var a = playerInput.actions;
+        moveAction = a["Move"];
+        lookAction = a["Look"];
+        jumpAction = a["Jump"];
+        runAction = a["Run"];
+        crouchAction = a["Crouch"];
+        useItemAction = a.FindAction("UseItem", false); // optional
 
-        // enable & subscribe (บางแพทเทิร์นไม่จำเป็นต้อง subscribe ถ้าอ่านใน Update)
         moveAction?.Enable();
         lookAction?.Enable();
         jumpAction?.Enable();
         runAction?.Enable();
         crouchAction?.Enable();
+        useItemAction?.Enable();
 
         if (jumpAction != null) jumpAction.started += OnJumpStarted;
         if (runAction != null) { runAction.performed += OnRunPerformed; runAction.canceled += OnRunCanceled; }
         if (crouchAction != null) { crouchAction.performed += OnCrouchPerformed; crouchAction.canceled += OnCrouchCanceled; }
+        if (useItemAction != null) useItemAction.performed += OnUseItem;
     }
 
     void OnDisable()
@@ -129,12 +167,14 @@ public class PlayerController3D : MonoBehaviour
         if (jumpAction != null) jumpAction.started -= OnJumpStarted;
         if (runAction != null) { runAction.performed -= OnRunPerformed; runAction.canceled -= OnRunCanceled; }
         if (crouchAction != null) { crouchAction.performed -= OnCrouchPerformed; crouchAction.canceled -= OnCrouchCanceled; }
+        if (useItemAction != null) useItemAction.performed -= OnUseItem;
 
         moveAction?.Disable();
         lookAction?.Disable();
         jumpAction?.Disable();
         runAction?.Disable();
         crouchAction?.Disable();
+        useItemAction?.Disable();
     }
 
     void Update()
@@ -143,42 +183,57 @@ public class PlayerController3D : MonoBehaviour
         HandleLookFPS();
         HandleGroundCheck();
         HandleCrouchState();
-        HandleMoveRun();
-        HandleJumpGravity();
-        ApplyHeightChangeAndCameraOffset();
+        HandleStaminaAndSprintGate();
+        HandleMove();
+        HandleJumpAndGravity();
+        ApplyHeightAndCamera();
         ApplyMovement();
+        UpdateFootstepLoop();
         UpdateAnimator();
     }
 
-    // ------------- Input -------------
+    // ------------------- Input -------------------
     void ReadInputs()
     {
         moveInput = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         lookInput = lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
-        // runHeld, crouchHeldOrToggled และ jumpPressed จัดการใน callbacks
     }
 
-    void OnJumpStarted(InputAction.CallbackContext ctx) => jumpPressed = true;
-
+    void OnJumpStarted(InputAction.CallbackContext _) => jumpPressed = true;
     void OnRunPerformed(InputAction.CallbackContext ctx) => runHeld = ctx.ReadValueAsButton();
-    void OnRunCanceled(InputAction.CallbackContext ctx) => runHeld = false;
+    void OnRunCanceled(InputAction.CallbackContext _) => runHeld = false;
 
-    void OnCrouchPerformed(InputAction.CallbackContext ctx)
+    void OnCrouchPerformed(InputAction.CallbackContext _)
     {
         if (holdToCrouch) crouchHeldOrToggled = true;
         else crouchHeldOrToggled = !crouchHeldOrToggled;
     }
-    void OnCrouchCanceled(InputAction.CallbackContext ctx)
+    void OnCrouchCanceled(InputAction.CallbackContext _)
     {
         if (holdToCrouch) crouchHeldOrToggled = false;
     }
 
-    // ------------- Systems -------------
+    void OnUseItem(InputAction.CallbackContext _)
+    {
+        // 1) UnityEvent (เผื่อผูกกับ Inventory/Item Manager ภายนอก)
+        onUseItem?.Invoke();
+
+        // 2) (ทางเลือก) Raycast หาของที่เล็งแล้วเรียก IUsable.Use()
+        if (raycastUse && cameraHolder)
+        {
+            if (Physics.Raycast(cameraHolder.position, cameraHolder.forward, out var hit, useDistance, useLayerMask, QueryTriggerInteraction.Ignore))
+            {
+                var usable = hit.collider.GetComponentInParent<IUsable>();
+                usable?.Use();
+            }
+        }
+    }
+
+    // ------------------- Systems -------------------
     void HandleLookFPS()
     {
         if (!cameraHolder) return;
 
-        // lookInput ควรเป็น Mouse Delta (หรือ Right Stick) หน่วย "หน่วย/เฟรม"
         float mouseX = lookInput.x * mouseSensitivity * Time.deltaTime;
         float mouseY = lookInput.y * mouseSensitivity * Time.deltaTime;
 
@@ -186,9 +241,7 @@ public class PlayerController3D : MonoBehaviour
         pitch -= mouseY;
         pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
 
-        // หมุนตัวละครซ้าย/ขวา
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-        // หมุนหัว (ก้ม/เงย)
         cameraHolder.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
 
@@ -203,12 +256,9 @@ public class PlayerController3D : MonoBehaviour
         if (isGrounded)
         {
             groundedTimer = groundedRememberTime;
-            if (velocity.y < 0f) velocity.y = -2f; // ติดพื้น
+            if (velocity.y < 0f) velocity.y = -2f;
         }
-        else
-        {
-            groundedTimer -= Time.deltaTime;
-        }
+        else groundedTimer -= Time.deltaTime;
     }
 
     void HandleCrouchState()
@@ -229,16 +279,31 @@ public class PlayerController3D : MonoBehaviour
         return !Physics.SphereCast(origin, headClearCheckRadius, Vector3.up, out _, castDist, groundMask, QueryTriggerInteraction.Ignore);
     }
 
-    void HandleMoveRun()
+    void HandleStaminaAndSprintGate()
     {
-        // ใน FPS ใช้ทิศของตัวละคร (transform.forward/right)
+        // ถ้าไม่ได้กดวิ่ง → Regen หลังดีเลย์
+        bool canRegen = !runHeld && isGrounded && (Time.time - lastSprintOrJumpTime) >= staminaRegenDelay;
+        if (canRegen) stamina = Mathf.MoveTowards(stamina, staminaMax, staminaRegenPerSec * Time.deltaTime);
+
+        // เปิด/ปิดวิ่งตาม Stamina
+        bool allowSprint = stamina >= minStaminaToStartSprint && !isCrouching;
+        isRunning = runHeld && allowSprint && (moveInput.sqrMagnitude > 0.001f);
+
+        // Drain stamina เมื่อกำลังวิ่ง
+        if (isRunning)
+        {
+            stamina = Mathf.Max(0f, stamina - staminaDrainRunPerSec * Time.deltaTime);
+            lastSprintOrJumpTime = Time.time;
+            if (stamina <= 0.01f) isRunning = false; // หมดแรงหยุดวิ่ง
+        }
+    }
+
+    void HandleMove()
+    {
         Vector3 forward = transform.forward;
         Vector3 right = transform.right;
-
         Vector3 moveDir = (forward * moveInput.y + right * moveInput.x);
         moveDir = Vector3.ClampMagnitude(moveDir, 1f);
-
-        isRunning = runHeld && !isCrouching && (moveDir.sqrMagnitude > 0.001f);
 
         float maxSpeed = isCrouching ? crouchSpeed : (isRunning ? runSpeed : walkSpeed);
         float target = maxSpeed * moveDir.magnitude;
@@ -250,29 +315,31 @@ public class PlayerController3D : MonoBehaviour
         velocity.z = horiz.z;
     }
 
-    void HandleJumpGravity()
+    void HandleJumpAndGravity()
     {
         if (jumpPressed && groundedTimer > 0f && !isCrouching)
         {
-            velocity.y = Mathf.Sqrt(2f * Mathf.Abs(gravity) * jumpHeight);
-            groundedTimer = 0f;
-            isGrounded = false;
+            if (stamina >= staminaDrainJump || staminaMax <= 0f) // เผื่อไม่มี stamina system
+            {
+                velocity.y = Mathf.Sqrt(2f * Mathf.Abs(gravity) * jumpHeight);
+                stamina = Mathf.Max(0f, stamina - staminaDrainJump);
+                lastSprintOrJumpTime = Time.time;
+                groundedTimer = 0f;
+                isGrounded = false;
+            }
         }
         jumpPressed = false; // consume
-
         velocity.y += gravity * Time.deltaTime;
     }
 
-    void ApplyHeightChangeAndCameraOffset()
+    void ApplyHeightAndCamera()
     {
-        // ปรับความสูง CharacterController ให้เนียน
         controller.height = Mathf.Lerp(controller.height, desiredHeight, Time.deltaTime * heightLerpSpeed);
         Vector3 c = controller.center;
         float targetCenterY = originalCenterY - (standHeight - controller.height) * 0.5f;
         c.y = Mathf.Lerp(c.y, targetCenterY, Time.deltaTime * heightLerpSpeed);
         controller.center = c;
 
-        // กล้องย่อตาม
         if (cameraHolder)
         {
             float targetY = isCrouching ? crouchCameraY : standCameraY;
@@ -285,12 +352,43 @@ public class PlayerController3D : MonoBehaviour
     void ApplyMovement()
     {
         controller.Move(velocity * Time.deltaTime);
-
-        // เอาไว้กันสั่นเมื่อแตะพื้นหลัง Move
-        if (controller.isGrounded && velocity.y < 0f)
-            velocity.y = -2f;
+        if (controller.isGrounded && velocity.y < 0f) velocity.y = -2f;
     }
 
+    // ------------------- Footsteps -------------------
+    void UpdateFootstepLoop()
+    {
+        if (footstepSource == null) return;
+
+        // เล่นเฉพาะตอนติดพื้น + มีการเคลื่อนที่
+        Vector3 horizVel = new Vector3(velocity.x, 0f, velocity.z);
+        float planarSpeed = horizVel.magnitude;
+        if (!isGrounded || planarSpeed < 0.2f) { stepAccumulator = 0f; return; }
+
+        // สะสมระยะตามกริดตลอด (ใช้ความเร็ว x เวลา)
+        stepAccumulator += planarSpeed * Time.deltaTime;
+
+        float stepDist = isCrouching ? stepDistanceCrouch
+                       : (isRunning ? stepDistanceRun : stepDistanceWalk);
+
+        if (Time.time - lastFootTime < footstepMinInterval) return;
+        if (stepAccumulator >= stepDist)
+        {
+            // เลือกคลิป
+            AudioClip[] bank = isCrouching ? crouchSteps : (isRunning ? runSteps : walkSteps);
+            if (bank != null && bank.Length > 0)
+            {
+                var clip = bank[Random.Range(0, bank.Length)];
+                footstepSource.pitch = Random.Range(stepPitchRange.x, stepPitchRange.y);
+                footstepSource.volume = Random.Range(stepVolRange.x, stepVolRange.y);
+                footstepSource.PlayOneShot(clip);
+            }
+            lastFootTime = Time.time;
+            stepAccumulator = 0f;
+        }
+    }
+
+    // ------------------- Animator -------------------
     void UpdateAnimator()
     {
         if (!animator) return;
@@ -302,13 +400,23 @@ public class PlayerController3D : MonoBehaviour
         animator.SetFloat("yVelocity", velocity.y);
     }
 
-    // ดีบักดูตำแหน่งเช็คพื้น
+    // ------------------- API / Interfaces -------------------
+    public float Stamina01 => Mathf.Clamp01(stamina / Mathf.Max(0.0001f, staminaMax));
+
+    // ใช้กับ onUseItem (Raycast)
+    public interface IUsable { void Use(); }
+
     void OnDrawGizmosSelected()
     {
         if (groundCheck)
         {
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
+        if (cameraHolder && raycastUse)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawRay(cameraHolder.position, cameraHolder.forward * useDistance);
         }
     }
 }

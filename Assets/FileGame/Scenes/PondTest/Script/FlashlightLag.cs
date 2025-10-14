@@ -1,68 +1,117 @@
 ﻿using UnityEngine;
-using UnityEngine.InputSystem; // แค่เพื่ออ่าน mouse delta ทำเอฟเฟกต์ sway (ไม่บังคับ)
+using UnityEngine.InputSystem;
 
-/// ติดที่ไฟฉาย ให้ตาม Target (เช่น CameraHolder) แบบหน่วง/สปริง + ส่ายเล็กน้อยตามการลากเมาส์
 public class FlashlightLag : MonoBehaviour
 {
     [Header("Follow Target")]
-    public Transform target;                 // ใส่ CameraHolder
-    public Vector3 localOffset = new Vector3(0f, -0.02f, 0.02f); // ระยะห่างจากจุด target (ทดสอบปรับได้)
+    public Transform target;                       // ใส่ CameraHolder หรือ Main Camera
 
-    [Header("Smoothing")]
-    [Tooltip("เวลาหน่วงตำแหน่ง (วินาที) ยิ่งน้อยยิ่งไว")]
+    [Tooltip("ตามแบบเวิลด์ (เหมาะเมื่อไฟฉายไม่เป็นลูกของกล้อง). ถ้าไฟฉายเป็นลูกกล้อง ให้ปิด")]
+    public bool followInWorld = true;
+
+    [Header("Position Follow")]
+    [Tooltip("หน่วงตำแหน่งด้วยหรือไม่ (ถ้าปิด จะ 'ไม่ขยับตำแหน่ง' เลย คงไว้ตามที่คุณวางไว้ข้างกล้อง)")]
+    public bool followPosition = true;
+
+    [Tooltip("ใช้ตำแหน่งเริ่มต้นของไฟฉาย (เทียบกับ target) เป็นออฟเซ็ตอัตโนมัติ")]
+    public bool useInitialOffset = true;
+
+    [Tooltip("ออฟเซ็ตเพิ่มเติมจากออฟเซ็ตเริ่มต้น (หน่วย local ของ target)")]
+    public Vector3 extraLocalOffset = Vector3.zero;
+
+    [Tooltip("เวลาในการหน่วงตำแหน่ง (วินาที)")]
     public float positionSmoothTime = 0.06f;
-    [Tooltip("เวลาหน่วงการหมุน (วินาที) ยิ่งน้อยยิ่งไว")]
+
+    [Header("Rotation Follow")]
+    [Tooltip("เวลาในการหน่วงการหมุน (วินาที)")]
     public float rotationSmoothTime = 0.08f;
 
-    [Header("Sway (เอฟเฟกต์ไฟแกว่งตามเมาส์)")]
-    public bool enableSway = true;
-    [Tooltip("แรงส่ายองศาต่อความเร็วเมาส์")]
-    public float swayAnglePerMouse = 0.02f;      // องศา/พิกเซลเมาส์
-    public float swayMaxAngle = 6f;               // ไม่ให้ส่ายเกินกี่องศา
-    public float swayReturnSharpness = 6f;        // ค่ากลับสู่ศูนย์ (spring)
+    [Header("Orientation Fix")]
+    [Tooltip("แก้ทิศโมเดลไฟฉายให้ตรงกับกล้อง (เช่น โมเดลหันผิดแกน)")]
+    public Vector3 aimAxisCorrectionEuler = Vector3.zero; // ลอง (0,90,0) หรือ (90,0,0) ถ้าชี้ผิด
+    private Quaternion aimAxisCorrection;
 
-    private Vector3 posVel;                       // สำหรับ SmoothDamp position
-    private float velPitch, velYaw;               // สำหรับ SmoothDampAngle rotation
-    private Vector2 swayCurrent;                  // pitch(x-ขึ้นลง), yaw(y-ซ้ายขวา)
+    [Header("Sway (optional)")]
+    public bool enableSway = true;
+    public float swayAnglePerMouse = 0.02f;   // องศาต่อพิกเซลเมาส์
+    public float swayMaxAngle = 6f;
+    public float swayReturnSharpness = 6f;
+
+    // --- internals ---
+    private Vector3 capturedLocalOffset;      // ออฟเซ็ตที่ "จับไว้" ตอนเริ่ม จากตำแหน่งที่คุณวางจริง
+    private Quaternion rotOffsetWorld;        // สำหรับ followInWorld=true
+    private Quaternion rotOffsetLocal;        // สำหรับ followInWorld=false (child)
+    private Vector3 posVel;
+    private Vector2 swayCurrent;
+
+    void Awake()
+    {
+        if (!target)
+        {
+            Debug.LogWarning("[FlashlightLag_v3] Missing target.");
+            enabled = false;
+            return;
+        }
+
+        aimAxisCorrection = Quaternion.Euler(aimAxisCorrectionEuler);
+
+        // 1) จับออฟเซ็ตตำแหน่ง "จากที่คุณวางไว้จริง"
+        // ไม่ว่าไฟฉายจะเป็นลูกหรือไม่ เราแปลงตำแหน่งตอนเริ่มให้ไปอยู่ใน local space ของ target
+        capturedLocalOffset = target.InverseTransformPoint(transform.position);
+
+        // 2) จับออฟเซ็ตการหมุนตอนเริ่ม เพื่อคงทิศโมเดลไว้
+        if (followInWorld)
+        {
+            // world: rotFlash ≈ targetRot * aimCorrection * rotOffsetWorld
+            rotOffsetWorld = Quaternion.Inverse(target.rotation) * transform.rotation * Quaternion.Inverse(aimAxisCorrection);
+        }
+        else
+        {
+            // child/local: rotFlash(local) ≈ targetLocalRot * aimCorrection * rotOffsetLocal
+            rotOffsetLocal = Quaternion.Inverse(target.localRotation) * transform.localRotation * Quaternion.Inverse(aimAxisCorrection);
+        }
+    }
 
     void LateUpdate()
     {
         if (!target) return;
 
-        // 1) ตำแหน่ง: ไล่ตามแบบ SmoothDamp
-        Vector3 desiredPos = target.TransformPoint(localOffset);
-        transform.position = Vector3.SmoothDamp(transform.position, desiredPos, ref posVel, positionSmoothTime);
+        // ---------- POSITION ----------
+        if (followPosition)
+        {
+            // ใช้ "ออฟเซ็ตที่จับไว้" + extraLocalOffset -> จะรักษาตำแหน่งข้างกล้อง ไม่ดูดเข้ากลาง
+            Vector3 desiredPos = target.TransformPoint(capturedLocalOffset + extraLocalOffset);
+            transform.position = Vector3.SmoothDamp(transform.position, desiredPos, ref posVel, positionSmoothTime);
+        }
+        // else: ไม่แตะตำแหน่งเลย → จะคงไว้ตรงข้างกล้องแบบที่คุณวาง
 
-        // 2) การหมุนหลัก: ไล่ตาม yaw/pitch ของ target แบบหน่วงองศา
-        Vector3 cur = transform.rotation.eulerAngles;
-        Vector3 tgt = target.rotation.eulerAngles;
+        // ---------- ROTATION ----------
+        // หมุนให้หันตามกล้อง + แกนแก้ + ออฟเซ็ตหมุนที่จับไว้
+        Quaternion targetRot = followInWorld
+            ? target.rotation * aimAxisCorrection * rotOffsetWorld
+            : target.rotation * aimAxisCorrection * rotOffsetLocal; // ใช้ world rotation เพื่อความนิ่ง
 
-        float yaw = Mathf.SmoothDampAngle(cur.y, tgt.y, ref velYaw, rotationSmoothTime);
-        float pitch = Mathf.SmoothDampAngle(cur.x, tgt.x, ref velPitch, rotationSmoothTime);
-
-        // 3) อ่านเมาส์เพื่อใส่ "sway" (ไฟแกว่งเล็กน้อย) – ใช้ New Input System
+        // เพิ่ม Sway (ตามแกนของกล้อง)
         if (enableSway)
         {
             var mouse = Mouse.current;
             if (mouse != null)
             {
-                Vector2 delta = mouse.delta.ReadValue();   // พิกเซลต่อเฟรม
-                // เพิ่มออฟเซ็ต (กลับด้านนิดหน่อยให้ดูแกว่ง)
+                Vector2 delta = mouse.delta.ReadValue();
                 swayCurrent.x = Mathf.Clamp(swayCurrent.x - delta.y * swayAnglePerMouse, -swayMaxAngle, swayMaxAngle); // pitch
                 swayCurrent.y = Mathf.Clamp(swayCurrent.y + delta.x * swayAnglePerMouse, -swayMaxAngle, swayMaxAngle); // yaw
             }
-            // ให้ส่ายค่อย ๆ กลับศูนย์ (spring)
             swayCurrent = Vector2.Lerp(swayCurrent, Vector2.zero, 1f - Mathf.Exp(-swayReturnSharpness * Time.deltaTime));
-        }
-        else
-        {
-            swayCurrent = Vector2.zero;
+
+            Quaternion swayRot =
+                Quaternion.AngleAxis(swayCurrent.y, target.up) *
+                Quaternion.AngleAxis(swayCurrent.x, target.right);
+
+            targetRot = targetRot * swayRot;
         }
 
-        // 4) ประกอบมุมรวม (ตามกล้อง + sway)
-        float finalPitch = pitch + swayCurrent.x;
-        float finalYaw = yaw + swayCurrent.y;
-
-        transform.rotation = Quaternion.Euler(finalPitch, finalYaw, 0f);
+        // หน่วงการหมุนแบบ slerp ดีกว่า (นิ่ง)
+        float t = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(0.0001f, rotationSmoothTime));
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, t);
     }
 }

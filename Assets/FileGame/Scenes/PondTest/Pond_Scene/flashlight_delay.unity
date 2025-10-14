@@ -1110,6 +1110,26 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1474933918 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3701203786200842540, guid: 31d9aad802bde7d45bb7251357a73a1e, type: 3}
+  m_PrefabInstance: {fileID: 1703913498}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1474933924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1474933918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc80dc2bddc98d743bef591d80ee1fc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SanityApplier
+  player: {fileID: 0}
+  logWhenApplied: 0
+  warnIfNoWritableTarget: 1
 --- !u!1001 &1524828442
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1123,8 +1143,12 @@ PrefabInstance:
       value: Flashlight
       objectReference: {fileID: 0}
     - target: {fileID: 4520318622635210, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.004
+      objectReference: {fileID: 0}
+    - target: {fileID: 4520318622635210, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -2.481
+      value: -0.006
       objectReference: {fileID: 0}
     - target: {fileID: 4520318622635210, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1257,6 +1281,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1002705123656268, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1689620370}
+    - targetCorrespondingSourceObject: {fileID: 1002705123656268, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1689620374}
     - targetCorrespondingSourceObject: {fileID: 1175331865632600, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1524828444}
@@ -1360,6 +1387,30 @@ MonoBehaviour:
   perlinSpeed: 4
   onOffLerpSpeed: 10
   autoFindSpotFromChildren: 1
+--- !u!114 &1689620374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689620365}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d293b21865fa1eb4db0022c4763d6f2a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlashlightLag
+  target: {fileID: 759215546}
+  followInWorld: 1
+  followPosition: 1
+  useInitialOffset: 1
+  extraLocalOffset: {x: 0, y: 0, z: 0}
+  positionSmoothTime: 0.06
+  rotationSmoothTime: 0.08
+  aimAxisCorrectionEuler: {x: 0, y: 0, z: 0}
+  enableSway: 1
+  swayAnglePerMouse: 0.02
+  swayMaxAngle: 6
+  swayReturnSharpness: 6
 --- !u!1001 &1703913498
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1453,12 +1504,16 @@ PrefabInstance:
       value: 600
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 1002705123656268, guid: 31d9aad802bde7d45bb7251357a73a1e, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 2919690809838124326, guid: 31d9aad802bde7d45bb7251357a73a1e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1689620369}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3701203786200842540, guid: 31d9aad802bde7d45bb7251357a73a1e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1474933924}
   m_SourcePrefab: {fileID: 100100000, guid: 31d9aad802bde7d45bb7251357a73a1e, type: 3}
 --- !u!1 &1779220970
 GameObject:
