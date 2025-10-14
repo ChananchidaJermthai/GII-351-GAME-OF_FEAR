@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.InputSystem; // New Input System only
+using UnityEngine.InputSystem; // ใช้ New Input System เท่านั้น
 
 [DisallowMultipleComponent]
 public class Flashlight : MonoBehaviour
@@ -14,25 +14,28 @@ public class Flashlight : MonoBehaviour
     public Key reloadKey = Key.R;
     public Key brightUpKey = Key.Equals;    // (=) หรือ Key.NumpadPlus
     public Key brightDownKey = Key.Minus;   // (-) หรือ Key.NumpadMinus
-    // โฟกัส: ถ้าไม่มี action จะใช้ Mouse ปุ่มขวาเสมอ (Mouse.current.rightButton)
 
     [Header("Base Light")]
-    public float baseIntensity = 800f;  // “ลูเมนจำลอง” -> map ไป Light.intensity ด้านล่าง
-    public float baseRange = 18f;
+    public float baseIntensity = 3500f;   // ค่าพื้นฐาน (หน่วยจำลองลูเมน)
+    public float baseRange = 24f;
     public float baseSpotAngle = 60f;
     public Color color = new Color(1.0f, 0.956f, 0.84f);
 
+    [Header("Light Scale")]
+    public float lumenToUnity = 0.04f;
+    public float masterBoost = 1.0f; // คูณเพิ่มอีกชั้น
+
     [Header("Focus Hold")]
-    public float focusIntensityMul = 1.25f;
+    public float focusIntensityMul = 1.35f;
     public float focusRangeMul = 1.2f;
-    public float focusSpotAngle = 30f;
+    public float focusSpotAngle = 22f;
     public float focusTransition = 12f;
 
     [Header("Brightness Control")]
     public float userBrightnessMin = 0.4f;
-    public float userBrightnessMax = 1.4f;
+    public float userBrightnessMax = 2.0f;   // ขยับเพดานสว่างสูงขึ้น
     public float userBrightnessStep = 0.1f;
-    [Range(0.4f, 1.4f)] public float userBrightness = 1.0f;
+    [Range(0.4f, 2.0f)] public float userBrightness = 1.2f;
 
     [Header("Battery")]
     public float batteryCapacity = 120f;
@@ -56,11 +59,9 @@ public class Flashlight : MonoBehaviour
     [Header("Auto-Setup")]
     public bool autoFindSpotFromChildren = true;
 
-    // Optional: PlayerInput + actions (ถ้ามี)
     private PlayerInput playerInput;
     private InputAction aToggle, aFocus, aReload, aBrightUp, aBrightDown;
 
-    // State
     private bool isOn = true;
     private bool wantFocus = false;
     private float batteryRemain;
@@ -81,7 +82,7 @@ public class Flashlight : MonoBehaviour
 
         spot.type = LightType.Spot;
         spot.color = color;
-        spot.intensity = 0f;        // จะ lerp ไปค่าเป้าหมาย
+        spot.intensity = 0f;
         spot.range = baseRange;
         spot.spotAngle = baseSpotAngle;
 
@@ -110,39 +111,24 @@ public class Flashlight : MonoBehaviour
         desiredSpotAngle = baseSpotAngle;
     }
 
-    void OnDisable()
-    {
-        aToggle?.Disable(); aFocus?.Disable(); aReload?.Disable(); aBrightUp?.Disable(); aBrightDown?.Disable();
-        if (aToggle != null) aToggle.performed -= _ => Toggle();
-        if (aFocus != null) { aFocus.performed -= _ => wantFocus = true; aFocus.canceled -= _ => wantFocus = false; }
-        if (aReload != null) aReload.performed -= _ => ReloadOneCell();
-        if (aBrightUp != null) aBrightUp.performed -= _ => AdjustBrightness(+userBrightnessStep);
-        if (aBrightDown != null) aBrightDown.performed -= _ => AdjustBrightness(-userBrightnessStep);
-    }
-
     void Update()
     {
-        HandleInputsFallback();         // ไม่มี PlayerInput ก็อ่านจาก Keyboard.current/Mouse.current
+        HandleInputsFallback();
         SimulateBatteryAndFlicker(Time.deltaTime);
         UpdateTargets();
         ApplyLight(Time.deltaTime);
     }
 
-    // ---------- Fallback (New Input System ล้วน ๆ) ----------
     void HandleInputsFallback()
     {
-        if (playerInput) return; // มี actions แล้วไม่ต้อง fallback
-
-        var kb = Keyboard.current;
-        var mouse = Mouse.current;
+        if (playerInput) return;
+        var kb = Keyboard.current; var mouse = Mouse.current;
         if (kb == null) return;
 
         if (kb[toggleKey].wasPressedThisFrame) Toggle();
         if (kb[reloadKey].wasPressedThisFrame) ReloadOneCell();
         if (kb[brightUpKey].wasPressedThisFrame) AdjustBrightness(+userBrightnessStep);
         if (kb[brightDownKey].wasPressedThisFrame) AdjustBrightness(-userBrightnessStep);
-
-        // Focus = ปุ่มขวาค้าง
         wantFocus = mouse != null && mouse.rightButton.isPressed;
     }
 
@@ -152,10 +138,8 @@ public class Flashlight : MonoBehaviour
         if (audioSrc) audioSrc.PlayOneShot(isOn ? sfxToggleOn : sfxToggleOff);
     }
 
-    void AdjustBrightness(float d)
-    {
+    void AdjustBrightness(float d) =>
         userBrightness = Mathf.Clamp(userBrightness + d, userBrightnessMin, userBrightnessMax);
-    }
 
     bool ReloadOneCell()
     {
@@ -166,69 +150,40 @@ public class Flashlight : MonoBehaviour
         return true;
     }
 
-    // ---------- Sim / Targets / Apply ----------
     void SimulateBatteryAndFlicker(float dt)
     {
         if (!spot) return;
-
-        float brightnessMul = userBrightness;
-        float focusMul = wantFocus ? 1.2f : 1.0f;
-        float onMul = isOn ? 1f : 0f;
-        batteryRemain = Mathf.Max(0f, batteryRemain - (drainPerSecond * brightnessMul * focusMul * onMul) * dt);
-
-        float batteryPct = batteryCapacity <= 0 ? 0 : batteryRemain / batteryCapacity;
-        bool low = batteryPct <= lowBatteryThreshold;
-
-        if (enableFlicker && low && isOn && !inBurst)
-        {
-            if (Random.value < lowBatteryFlickerChance * dt)
-            {
-                inBurst = true;
-                burstEndTime = Time.time + Random.Range(flickerBurstDuration.x, flickerBurstDuration.y);
-                nextFlicker = 0f;
-                if (audioSrc && sfxSputter) audioSrc.PlayOneShot(sfxSputter);
-            }
-        }
-        if (inBurst && Time.time >= burstEndTime) inBurst = false;
+        float mul = userBrightness * (wantFocus ? 1.2f : 1f) * (isOn ? 1f : 0f);
+        batteryRemain = Mathf.Max(0f, batteryRemain - drainPerSecond * mul * dt);
 
         if (batteryRemain <= 0f) isOn = false;
-
         perlinT += dt * perlinSpeed;
     }
 
     float CalcTargetIntensity()
     {
         if (!isOn || batteryRemain <= 0f) return 0f;
-
         float i = baseIntensity * userBrightness;
 
+        // Flicker jitter
         if (enableFlicker)
         {
             float n = Mathf.PerlinNoise(perlinT, 0.123f);
-            float jitter = 1f + (n - 0.5f) * 2f * perlinAmplitude;
-            i *= jitter;
-
-            if (inBurst)
-            {
-                if (Time.time >= nextFlicker) nextFlicker = Time.time + Random.Range(flickerGap.x, flickerGap.y);
-                float phase = Mathf.PingPong(Time.time * 50f, 1f);
-                if (phase > 0.5f) i *= 0.25f;
-            }
+            i *= 1f + (n - 0.5f) * 2f * perlinAmplitude;
         }
 
         if (wantFocus) i *= focusIntensityMul;
 
         float batteryPct = batteryCapacity <= 0 ? 0 : batteryRemain / batteryCapacity;
-        float cap = Mathf.Lerp(0.4f, 1.0f, batteryPct); // แบตต่ำลดเพดานสว่าง
-        i *= cap;
+        i *= Mathf.Lerp(0.6f, 1.0f, batteryPct);
 
-        // map “ลูเมนจำลอง” -> Unity Light.intensity (ประมาณการ)
-        return Mathf.Clamp(i * 0.003f, 0f, 10f);
+        return Mathf.Clamp(i * lumenToUnity, 0f, 200f);
+
     }
 
     float CalcTargetRange()
     {
-        float r = baseRange * Mathf.Lerp(0.6f, 1.0f, batteryRemain / Mathf.Max(1f, batteryCapacity));
+        float r = baseRange;
         if (wantFocus) r *= focusRangeMul;
         r *= Mathf.Lerp(0.7f, 1.0f, userBrightness);
         return r;
@@ -248,16 +203,9 @@ public class Flashlight : MonoBehaviour
     {
         if (!spot) return;
         float lerp = onOffLerpSpeed * dt;
-
         spot.intensity = Mathf.Lerp(spot.intensity, desiredIntensity, lerp);
         spot.range = Mathf.Lerp(spot.range, desiredRange, lerp);
         spot.spotAngle = Mathf.Lerp(spot.spotAngle, desiredSpotAngle, focusTransition * dt);
-
-        bool shouldEnable = spot.intensity > 0.02f && isOn;
-        if (spot.enabled != shouldEnable) spot.enabled = shouldEnable;
+        spot.enabled = (spot.intensity > 0.02f && isOn);
     }
-
-    // API เสริม
-    public float BatteryPercent => batteryCapacity <= 0 ? 0 : Mathf.Clamp01(batteryRemain / batteryCapacity);
-    public bool IsOn => isOn;
 }

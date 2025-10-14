@@ -119,7 +119,7 @@ MonoBehaviour:
   crouchCameraY: 1
   cameraLerpSpeed: 10
   headClearCheckRadius: 0.2
-  mouseSensitivity: 50
+  mouseSensitivity: 200
   pitchClamp: 85
   animator: {fileID: 0}
 --- !u!114 &2772604775999917690
