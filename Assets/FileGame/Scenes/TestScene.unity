@@ -5490,6 +5490,14 @@ PrefabInstance:
       propertyPath: muteOutsideRange
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5680876677797451263, guid: 335e7a78ec57e0541b515a581d8371ac, type: 3}
+      propertyPath: customRolloff.m_Curve.Array.data[1].time
+      value: 1.9992546
+      objectReference: {fileID: 0}
+    - target: {fileID: 5680876677797451263, guid: 335e7a78ec57e0541b515a581d8371ac, type: 3}
+      propertyPath: customRolloff.m_Curve.Array.data[1].value
+      value: 0.014364514
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
