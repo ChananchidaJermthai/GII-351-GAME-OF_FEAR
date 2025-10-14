@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b6266113f18decb48ad4fd1d2d57023f
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 318324
+  packageName: Mad Patient
+  packageVersion: 1.0
+  assetPath: Assets/Mad Patient/Mad Patient Animator Controller.controller
+  uploadId: 751779
