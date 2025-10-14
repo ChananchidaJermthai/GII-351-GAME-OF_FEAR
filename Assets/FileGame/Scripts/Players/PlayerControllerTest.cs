@@ -173,6 +173,7 @@ public class PlayerControllerTest : MonoBehaviour
 
     void Update()
     {
+        #region === Main Update Loop ===
         UpdateStaminaUI();
         UpdateFeedbackTimer();
 
@@ -208,10 +209,11 @@ public class PlayerControllerTest : MonoBehaviour
 
         // --- Footstep loop ---
         UpdateFootstepLoop();
-
+        #endregion
         // --- Sanity / Use item ---
         RegenerateSanity();
         if (useItem) TryUseConfiguredItem();
+        //------------------------------------------
     }
 
     void OnValidate()
