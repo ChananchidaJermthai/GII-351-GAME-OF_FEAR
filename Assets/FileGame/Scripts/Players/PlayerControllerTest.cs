@@ -7,20 +7,22 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class PlayerControllerTest : MonoBehaviour
 {
-    // ---------- INPUT ACTIONS ----------
+    #region === Inspector: Input Actions ===
     [Header("Input Actions (.inputactions)")]
     public InputActionReference moveAction;    // Vector2
     public InputActionReference lookAction;    // Vector2
     public InputActionReference sprintAction;  // Button
     public InputActionReference crouchAction;  // Button (toggle/hold)
     public InputActionReference useItemAction; // Button
+    #endregion
 
-    // ---------- REFS ----------
+    #region === Inspector: References ===
     [Header("Refs")]
     public Camera playerCamera;
     public InventoryLite inventory;
+    #endregion
 
-    // ---------- MOVE ----------
+    #region === Inspector: Movement / CharacterController ===
     [Header("Move Speeds (m/s)")]
     [Min(0f)] public float walkSpeed = 3.5f;
     [Min(0f)] public float sprintSpeed = 6.5f;
@@ -35,14 +37,17 @@ public class PlayerControllerTest : MonoBehaviour
     [Header("Gravity")]
     public float gravity = -20f;
     public float stickToGroundForce = -2f;
+    #endregion
 
+    #region === Inspector: Mouse Look ===
     [Header("Mouse Look")]
     public float mouseSensitivityX = 1.2f;
     public float mouseSensitivityY = 1.2f;
     public float minPitch = -80f;
     public float maxPitch = 80f;
+    #endregion
 
-    // ---------- STAMINA ----------
+    #region === Inspector: Stamina ===
     [Header("Stamina (for Sprint)")]
     public TMP_Text staminaText;
     [Min(0.1f)] public float staminaMax = 100f;
@@ -50,29 +55,33 @@ public class PlayerControllerTest : MonoBehaviour
     [Min(0.1f)] public float staminaRegenPerSec = 14f;
     [Min(0f)] public float regenDelay = 0.6f;
     [Min(0f)] public float minSprintToStart = 10f;
+    #endregion
 
-    // ---------- SANITY ----------
+    #region === Inspector: Sanity ===
     [Header("Sanity (auto regen)")]
     public Slider sanitySlider; // Max=1
     public TMP_Text sanityText;
     [Min(0.1f)] public float sanityMax = 100f;
     [Min(0f)] public float sanityStart = 0f;
     [Min(0f)] public float sanityRegenPerSec = 5f;
+    #endregion
 
-    // ---------- USE ITEM ----------
+    #region === Inspector: Use Item ===
     [Header("Use Item Settings")]
     public string useItemKeyId = "Key";
     public float sanityCostPerUse = 10f;
     public TMP_Text useItemFeedbackText;
     public float feedbackHideDelay = 1.5f;
+    #endregion
 
-    // ---------- FALLBACK KEYS (Input System only) ----------
+    #region === Inspector: Fallback Keys (Input System only) ===
     [Header("Fallback Keys (Input System)")]
     public Key keyUseItemIS = Key.E;
     Keyboard kb => Keyboard.current;
     Mouse ms => Mouse.current;
+    #endregion
 
-    // ---------- FOOTSTEPS : SIMPLE LOOP ----------
+    #region === Inspector: Footsteps (Simple Loop) ===
     [Header("Footstep (Simple Loop)")]
     public bool footstepEnable = true;
     public AudioSource footstepSource;
@@ -84,29 +93,35 @@ public class PlayerControllerTest : MonoBehaviour
     [Range(0f, 1f)] public float sprintVolume = 1.0f;
     [Range(0f, 1f)] public float crouchVolume = 0.55f;
     [Range(0f, 0.3f)] public float fadeTime = 0.08f;
+    #endregion
 
-    // ---------- RUNTIME ----------
+    #region === Runtime State & Public Properties ===
+    // Character / movement state
     CharacterController _cc;
     float _pitch, _verticalVel;
     bool _isCrouching, _isSprinting;
+
+    // Stamina / Sanity
     float _stamina, _lastSprintTime;
     float _sanity;
     float _feedbackTimer = -1f;
 
-    // footstep fade
+    // Footstep fade state
     float _currentTargetVol = 0f;
     float _fadeVel = 0f;
 
-    // === FIX จมพื้น: ล็อกก้นแคปซูลให้คงที่ ===
-    float _capsuleBottomLocalY; // ค่าก้น (local) ของ CharacterController ตั้งแต่เริ่มเกม
+    // Fix sinking: keep capsule bottom anchored
+    float _capsuleBottomLocalY;
 
-    // ---------- PUBLIC PROPERTIES ----------
+    // Public read-only (for other scripts)
     public bool IsSprinting => _isSprinting;
     public bool IsCrouching => _isCrouching;
     public float CurrentSpeedXZ => new Vector3(_cc.velocity.x, 0f, _cc.velocity.z).magnitude;
     public float Stamina01 => Mathf.Clamp01(_stamina / staminaMax);
     public float Sanity01 => Mathf.Clamp01(_sanity / sanityMax);
+    #endregion
 
+    #region === Unity Lifecycle ===
     void OnEnable()
     {
         moveAction?.action.Enable();
@@ -115,6 +130,7 @@ public class PlayerControllerTest : MonoBehaviour
         crouchAction?.action.Enable();
         useItemAction?.action.Enable();
     }
+
     void OnDisable()
     {
         moveAction?.action.Disable();
@@ -130,19 +146,18 @@ public class PlayerControllerTest : MonoBehaviour
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
 
-        // เก็บก้นแคปซูลไว้จากค่าเริ่มต้น (center/height จาก Inspector)
+        // Remember capsule bottom (local) from Inspector values
         _capsuleBottomLocalY = _cc.center.y - (_cc.height * 0.5f);
 
         _stamina = staminaMax;
         _sanity = Mathf.Clamp(sanityStart, 0f, sanityMax);
 
-        // ไม่ตั้ง center = height*0.5f ตรง ๆ อีกแล้ว (ปล่อยตาม Inspector)
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
         if (useItemFeedbackText) useItemFeedbackText.text = "";
 
-        // Footstep AudioSource (loop)
+        // Footstep AudioSource setup
         if (!footstepSource) footstepSource = gameObject.AddComponent<AudioSource>();
         footstepSource.playOnAwake = false;
         footstepSource.loop = true;
@@ -150,7 +165,7 @@ public class PlayerControllerTest : MonoBehaviour
         footstepSource.rolloffMode = AudioRolloffMode.Logarithmic;
         footstepSource.minDistance = 1.5f;
         footstepSource.maxDistance = 18f;
-        footstepSource.volume = 0f; // start silent
+        footstepSource.volume = 0f;
 
         UpdateSanityUI();
         UpdateStaminaUI();
@@ -158,21 +173,23 @@ public class PlayerControllerTest : MonoBehaviour
 
     void Update()
     {
+        #region === Main Update Loop ===
         UpdateStaminaUI();
         UpdateFeedbackTimer();
 
-        // Inputs
+        // --- Read Inputs ---
         Vector2 move = ReadMoveIA();
         Vector2 look = ReadLookIA();
         bool wantSprint = ReadSprintIA();
         bool crouchPress = ReadCrouchIA();
         bool useItem = ReadUseItemIA();
 
+        // --- Core handlers ---
         HandleCrouch(crouchPress);
         HandleSprintAndStamina(move, wantSprint);
         HandleLook(look);
 
-        // Move
+        // --- Motion / Gravity ---
         float targetSpeed = _isCrouching ? crouchSpeed : (_isSprinting ? sprintSpeed : walkSpeed);
         Vector3 wishDir = (transform.right * move.x + transform.forward * move.y);
         if (wishDir.sqrMagnitude > 1f) wishDir.Normalize();
@@ -181,26 +198,38 @@ public class PlayerControllerTest : MonoBehaviour
         _verticalVel = _cc.isGrounded ? stickToGroundForce : _verticalVel + gravity * Time.deltaTime;
         Vector3 motion = horizontalVel + Vector3.up * _verticalVel;
 
-        // ====== FIX จมพื้น: ปรับความสูงด้วย Lerp และคำนวณ center ใหม่จาก "ก้นคงที่" ======
+        // --- Keep capsule bottom anchored while height changes (anti-sink) ---
         float targetHeight = Mathf.Max(_cc.radius * 2f + 0.01f, _isCrouching ? crouchHeight : standHeight);
         _cc.height = Mathf.Lerp(_cc.height, targetHeight, Time.deltaTime * heightLerpSpeed);
-
         var c = _cc.center;
         c.y = _capsuleBottomLocalY + (_cc.height * 0.5f);
         _cc.center = c;
-        // ===============================================================================
 
         _cc.Move(motion * Time.deltaTime);
 
-        // Footstep loop
+        // --- Footstep loop ---
         UpdateFootstepLoop();
-
-        // Sanity regen + Use item
+        #endregion
+        // --- Sanity / Use item ---
         RegenerateSanity();
         if (useItem) TryUseConfiguredItem();
+        //------------------------------------------
     }
 
-    // ===================== FOOTSTEP (LOOP) =====================
+    void OnValidate()
+    {
+        if (!_cc) _cc = GetComponent<CharacterController>();
+        if (_cc)
+        {
+            // Height must not be smaller than 2*radius
+            float minH = Mathf.Max(0.1f, _cc.radius * 2f + 0.01f);
+            standHeight = Mathf.Max(standHeight, minH);
+            crouchHeight = Mathf.Max(crouchHeight, minH);
+        }
+    }
+    #endregion
+
+    #region === Footsteps (Loop Logic) ===
     void UpdateFootstepLoop()
     {
         if (!footstepEnable || footstepSource == null) return;
@@ -257,8 +286,9 @@ public class PlayerControllerTest : MonoBehaviour
         else
             footstepSource.volume = _currentTargetVol;
     }
+    #endregion
 
-    // ===================== USE ITEM =====================
+    #region === Use Item Logic & UI Feedback ===
     void TryUseConfiguredItem()
     {
         if (string.IsNullOrEmpty(useItemKeyId)) { ShowFeedback("ไม่ได้ตั้ง KeyID ของไอเท็ม"); return; }
@@ -292,6 +322,7 @@ public class PlayerControllerTest : MonoBehaviour
             Debug.Log(msg);
         }
     }
+
     void UpdateFeedbackTimer()
     {
         if (_feedbackTimer < 0f) return;
@@ -302,8 +333,9 @@ public class PlayerControllerTest : MonoBehaviour
             _feedbackTimer = -1f;
         }
     }
+    #endregion
 
-    // ===================== INPUT READERS =====================
+    #region === Input Readers (Input System) ===
     Vector2 ReadMoveIA()
     {
         if (moveAction && moveAction.action.enabled) return moveAction.action.ReadValue<Vector2>();
@@ -315,17 +347,20 @@ public class PlayerControllerTest : MonoBehaviour
         }
         var v = new Vector2(x, y); if (v.sqrMagnitude > 1f) v.Normalize(); return v;
     }
+
     Vector2 ReadLookIA()
     {
         if (lookAction && lookAction.action.enabled) return lookAction.action.ReadValue<Vector2>();
         var d = ms != null ? ms.delta.ReadValue() * 0.1f : Vector2.zero;
         return new Vector2(d.x, d.y);
     }
+
     bool ReadSprintIA()
     {
         if (sprintAction && sprintAction.action.enabled) return sprintAction.action.IsPressed();
         return kb != null && kb.leftShiftKey.isPressed;
     }
+
     bool ReadCrouchIA()
     {
         if (crouchAction && crouchAction.action.enabled)
@@ -334,13 +369,15 @@ public class PlayerControllerTest : MonoBehaviour
         if (kb == null) return false;
         return crouchToggle ? kb.leftCtrlKey.wasPressedThisFrame : kb.leftCtrlKey.isPressed;
     }
+
     bool ReadUseItemIA()
     {
         if (useItemAction && useItemAction.action.enabled) return useItemAction.action.WasPressedThisFrame();
         return kb != null && kb[keyUseItemIS].wasPressedThisFrame;
     }
+    #endregion
 
-    // ===================== LOOK / CROUCH / SPRINT =====================
+    #region === Core Handlers: Look / Crouch / Sprint&Stamina ===
     void HandleLook(Vector2 look)
     {
         float yawDelta = look.x * mouseSensitivityX;
@@ -376,8 +413,9 @@ public class PlayerControllerTest : MonoBehaviour
             _stamina = Mathf.Min(staminaMax, _stamina + staminaRegenPerSec * Time.deltaTime);
         }
     }
+    #endregion
 
-    // ===================== SANITY =====================
+    #region === Sanity Methods ===
     void RegenerateSanity()
     {
         if (sanityRegenPerSec > 0f && _sanity < sanityMax)
@@ -386,25 +424,16 @@ public class PlayerControllerTest : MonoBehaviour
             UpdateSanityUI();
         }
     }
+
     void UpdateSanityUI()
     {
         if (sanitySlider) sanitySlider.value = Mathf.Clamp01(_sanity / sanityMax);
         if (sanityText) sanityText.text = $"Sanity: {Mathf.RoundToInt(_sanity)}/{Mathf.RoundToInt(sanityMax)}";
     }
+
     void UpdateStaminaUI()
     {
         if (staminaText) staminaText.text = $"Stamina: {Mathf.RoundToInt(_stamina)}/{Mathf.RoundToInt(staminaMax)}";
     }
-
-    void OnValidate()
-    {
-        if (!_cc) _cc = GetComponent<CharacterController>();
-        if (_cc)
-        {
-            // กันตั้งค่าความสูงต่ำกว่ารัศมี*2
-            float minH = Mathf.Max(0.1f, _cc.radius * 2f + 0.01f);
-            standHeight = Mathf.Max(standHeight, minH);
-            crouchHeight = Mathf.Max(crouchHeight, minH);
-        }
-    }
+    #endregion
 }
