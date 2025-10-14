@@ -1,17 +1,30 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class SpawnEnemyManager : MonoBehaviour
 {
-    [Header("Enemy Prefabs")]
-    public GameObject[] enemies; // เก็บ prefab ของศัตรู
+    [Header("Enemy Prefabs (Project Assets)")]
+    public GameObject[] enemies; // prefab จาก Project
+    private List<GameObject> enemyPrefabs = new List<GameObject>();
 
     [Header("Spawn Points")]
-    public Transform[] spawnPoints; // จุดเกิดที่สามารถตั้งในฉาก
+    public Transform[] spawnPoints;
 
     [Header("Spawn Settings")]
-    public float spawnInterval = 3f; // เวลาระหว่างการ spawn
+    public float spawnInterval = 3f;
+    public float enemyLifetime = 10f; // เวลาให้ enemy อยู่ใน scene ก่อนลบ
 
     private float timer;
+
+    void Awake()
+    {
+        enemyPrefabs.Clear();
+        foreach (GameObject prefab in enemies)
+        {
+            if (prefab != null)
+                enemyPrefabs.Add(prefab);
+        }
+    }
 
     void Update()
     {
@@ -23,21 +36,26 @@ public class SpawnEnemyManager : MonoBehaviour
         }
     }
 
-    void SpawnRandomEnemy()
+    public void SpawnRandomEnemy()
     {
-        if (enemies.Length == 0 || spawnPoints.Length == 0)
+        if (enemyPrefabs.Count == 0 || spawnPoints.Length == 0) return;
+
+        GameObject prefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
+        if (prefab == null) return;
+
+        Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
+
+        // Instantiate Enemy
+        GameObject enemyInstance = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation);
+
+        // ตรวจสอบว่ามี EnemyMove อยู่บน prefab
+        EnemyMove em = enemyInstance.GetComponent<EnemyMove>();
+        if (em == null)
         {
-            Debug.LogWarning("No enemies or spawn points assigned!");
-            return;
+            em = enemyInstance.AddComponent<EnemyMove>();
         }
 
-        // สุ่ม prefab ศัตรู
-        GameObject randomEnemy = enemies[Random.Range(0, enemies.Length)];
-
-        // สุ่มตำแหน่ง spawn point
-        Transform randomSpawn = spawnPoints[Random.Range(0, spawnPoints.Length)];
-
-        // สร้างศัตรู
-        Instantiate(randomEnemy, randomSpawn.position, randomSpawn.rotation);
+        // ตั้งเวลาลบตัวเองหลัง enemyLifetime วินาที
+        Destroy(enemyInstance, enemyLifetime);
     }
 }
