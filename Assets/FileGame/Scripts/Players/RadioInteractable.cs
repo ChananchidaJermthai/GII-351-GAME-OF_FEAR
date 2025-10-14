@@ -5,7 +5,7 @@ public class RadioInteractable : MonoBehaviour
 {
     [Header("Refs")]
     public RadioPlayer radio;
-    public RadioInventoryUI inventoryUI;   // << ลากมา หรือสคริปต์จะพยายามหาให้
+    public RadioInventoryUI inventoryUI;
 
     [Header("Duration Mode สำหรับการเล่น")]
     public RadioPlayer.DurationMode durationMode = RadioPlayer.DurationMode.ClipLength;
@@ -19,10 +19,8 @@ public class RadioInteractable : MonoBehaviour
         if (!radio) radio = GetComponentInParent<RadioPlayer>();
     }
 
-    // ถูกเรียกจาก PlayerAimPickup เมื่อผู้เล่นเล็งแล้วกด Interact
     public void TryInteract(GameObject playerGO)
     {
-        // หาอัตโนมัติถ้าไม่ได้ลาก
         if (!radio)
         {
             radio = GetComponentInParent<RadioPlayer>();
@@ -32,29 +30,27 @@ public class RadioInteractable : MonoBehaviour
                 return;
             }
         }
-        if (!inventoryUI)
-        {
 #if UNITY_2023_1_OR_NEWER
-            inventoryUI = FindFirstObjectByType<RadioInventoryUI>(FindObjectsInactive.Include);
+        if (!inventoryUI) inventoryUI = FindFirstObjectByType<RadioInventoryUI>(FindObjectsInactive.Include);
 #else
 #pragma warning disable 618
-            inventoryUI = FindObjectOfType<RadioInventoryUI>(true);
+        if (!inventoryUI) inventoryUI = FindObjectOfType<RadioInventoryUI>(true);
 #pragma warning restore 618
 #endif
-            if (!inventoryUI)
-            {
-                Debug.LogError("[RadioInteractable] ไม่พบ RadioInventoryUI ในฉาก (โปรดวาง Canvas/RadioInventoryUI แล้วลากให้เรียบร้อย)", this);
-                return;
-            }
+        if (!inventoryUI)
+        {
+            Debug.LogError("[RadioInteractable] ไม่พบ RadioInventoryUI ในฉาก (โปรดวาง Canvas/RadioInventoryUI แล้วลากให้เรียบร้อย)", this);
+            return;
         }
-
         if (playerGO == null)
         {
-            Debug.LogError("[RadioInteractable] playerGO เป็น null (ควรส่ง GameObject ผู้เล่นเข้ามา)", this);
+            Debug.LogError("[RadioInteractable] playerGO เป็น null", this);
             return;
         }
 
-        // เปิดพาเนลเลือกเทป—แสดงเฉพาะเทปที่ "ผู้เล่นมี"
+        // ถ้า UI เปิดอยู่แล้ว ไม่เปิดซ้ำ (ป้องกัน prevLock ถูกทับ)
+        if (inventoryUI.IsOpen) return;
+
         inventoryUI.Open(radio, durationMode, Mathf.Max(0f, customSeconds), playerGO.transform);
     }
 }

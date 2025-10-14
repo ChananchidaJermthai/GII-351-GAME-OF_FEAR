@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2730086329951706659}
   - component: {fileID: 3007232208389753265}
   m_Layer: 8
-  m_Name: Box
+  m_Name: Medicine
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -129,7 +129,7 @@ MonoBehaviour:
   amount: 1
   destroyOnPickup: 1
   pickupVfxPrefab: {fileID: 0}
-  pickupSfx: {fileID: 0}
+  pickupSfx: {fileID: 8300000, guid: 2e20a7650746d9b4dbe9b1cedfd4b7f7, type: 3}
   sfxVolume: 0.85
   onPicked:
     m_PersistentCalls:
