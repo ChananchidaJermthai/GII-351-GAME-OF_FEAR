@@ -5119,6 +5119,7 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 1
+  animator: {fileID: 0}
   walkSpeed: 3.5
   runSpeed: 6.5
   crouchSpeed: 2
@@ -5137,7 +5138,30 @@ MonoBehaviour:
   headClearCheckRadius: 0.2
   mouseSensitivity: 100
   pitchClamp: 85
-  animator: {fileID: 0}
+  staminaMax: 100
+  staminaDrainRunPerSec: 20
+  staminaDrainJump: 12
+  staminaRegenPerSec: 18
+  staminaRegenDelay: 0.75
+  minStaminaToStartSprint: 15
+  footstepSource: {fileID: 0}
+  walkSteps: []
+  runSteps: []
+  crouchSteps: []
+  footstepMinInterval: 0.1
+  stepDistanceWalk: 1.8
+  stepDistanceRun: 2.2
+  stepDistanceCrouch: 1.6
+  stepPitchRange: {x: 0.95, y: 1.05}
+  stepVolRange: {x: 0.65, y: 0.95}
+  onUseItem:
+    m_PersistentCalls:
+      m_Calls: []
+  raycastUse: 1
+  useDistance: 3
+  useLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!143 &336578341
 CharacterController:
   m_ObjectHideFlags: 0
@@ -23582,17 +23606,16 @@ MonoBehaviour:
   - {fileID: 15785554}
   - {fileID: 1344236592}
   - {fileID: 1854934310}
+  playerTag: Player
+  detectRange: 10
+  chaseDuration: 5
+  visionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
   speed: 3.5
   arriveDistance: 0.2
   faceMoveDirection: 1
   rotateSpeedDeg: 540
-  obstacleMask:
-    serializedVersion: 2
-    m_Bits: 55
-  lookAhead: 2
-  sideRayLength: 1.75
-  sideOffset: 0.5
-  avoidWeight: 2
 --- !u!1 &1555168802
 GameObject:
   m_ObjectHideFlags: 0
@@ -24571,7 +24594,7 @@ Transform:
   m_GameObject: {fileID: 1617324874}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 28.76, y: 2, z: 5.65}
+  m_LocalPosition: {x: 25.08, y: 2, z: 8.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
