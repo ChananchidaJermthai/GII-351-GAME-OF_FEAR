@@ -2937,7 +2937,7 @@ MonoBehaviour:
   points:
   - {fileID: 9083722337168246925, guid: 1390c9e1247da6c4da254db714807a28, type: 3}
   playerTag: Player
-  detectRange: 8
+  detectRange: 5
   chaseDuration: 3
   visionMask:
     serializedVersion: 2
