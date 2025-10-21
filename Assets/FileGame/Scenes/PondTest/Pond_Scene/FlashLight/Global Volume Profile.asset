@@ -74,10 +74,10 @@ MonoBehaviour:
   active: 1
   postExposure:
     m_OverrideState: 1
-    m_Value: -2.6
+    m_Value: -2.5
   contrast:
     m_OverrideState: 1
-    m_Value: 25
+    m_Value: 1
   colorFilter:
     m_OverrideState: 0
     m_Value: {r: 0, g: 0, b: 0, a: 1}
@@ -128,7 +128,7 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 6
   dirtTexture:
-    m_OverrideState: 1
+    m_OverrideState: 0
     m_Value: {fileID: 2800000, guid: b66976fe27dd03b49b02412f777eb8b7, type: 3}
     dimension: 1
   dirtIntensity:
