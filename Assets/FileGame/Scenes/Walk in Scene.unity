@@ -11481,7 +11481,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1579026247464356717, guid: 82b3a6c1bbd83d3408c37f60f654a920, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2456768885645401708, guid: 82b3a6c1bbd83d3408c37f60f654a920, type: 3}
       propertyPath: m_LocalPosition.x
@@ -43747,7 +43747,7 @@ Transform:
   m_GameObject: {fileID: 1327651539}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.66, y: 1, z: -56.5}
+  m_LocalPosition: {x: 0.66, y: 1, z: -44.26}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -43782,7 +43782,7 @@ MonoBehaviour:
   hitSfx: {fileID: 8300000, guid: 087edb0f0a559bd40bf2bee8a793aa80, type: 3}
   delayAfterHit: 0.1
   faintEffectDuration: 1.2
-  flickerFrequency: 1
+  flickerFrequency: 5
   maxFlickerAlpha: 0.8
   shakeDuration: 2
   shakePosIntensity: 0.05
@@ -44726,7 +44726,7 @@ Transform:
   m_GameObject: {fileID: 1459909772}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -39.85}
+  m_LocalPosition: {x: 0, y: 0, z: -24.61}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
