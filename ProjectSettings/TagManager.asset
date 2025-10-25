@@ -16,13 +16,13 @@ TagManager:
   - Player
   - Item
   - Radio
+  - Light
+  - CircuitBreaker
   - 
   - 
   - 
-  - 
-  - 
-  - 
-  - 
+  - Roof
+  - Neon
   - 
   - 
   - 

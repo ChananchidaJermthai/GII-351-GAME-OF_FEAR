@@ -53,10 +53,13 @@ public class PlayerAimPickup : MonoBehaviour
 
         var ray = CenterRay();
         var hit = default(RaycastHit);
-        var itemTarget = FindItemTarget(ray, out hit);
-        var radioTarget = itemTarget ? null : FindRadioTarget(ray, out hit); // ถ้าเป็นไอเท็มแล้ว ไม่ต้องหาเรดิโอซ้ำ
 
-        bool hasTarget = itemTarget != null || radioTarget != null;
+        // ลำดับตรวจ: Item > Radio > CircuitBreaker
+        var itemTarget = FindItemTarget(ray, out hit);
+        var radioTarget = itemTarget ? null : FindRadioTarget(ray, out hit);
+        var breakerTarget = (itemTarget || radioTarget != null) ? null : FindBreakerTarget(ray, out hit);
+
+        bool hasTarget = itemTarget != null || radioTarget != null || breakerTarget != null;
 
         if (promptRoot) promptRoot.SetActive(hasTarget);
 #if TMP_PRESENT || UNITY_2021_1_OR_NEWER
@@ -64,6 +67,7 @@ public class PlayerAimPickup : MonoBehaviour
         {
             if (itemTarget) promptText.text = $" Press E Get {itemTarget.itemId} x {itemTarget.amount} ";
             else if (radioTarget) promptText.text = radioTarget.promptText;
+            else if (breakerTarget) promptText.text = breakerTarget.promptText;
             else promptText.text = "";
         }
 #endif
@@ -76,7 +80,8 @@ public class PlayerAimPickup : MonoBehaviour
         if (hasTarget && PressedInteract())
         {
             if (itemTarget) itemTarget.TryPickup(gameObject);
-            else radioTarget.TryInteract(gameObject);
+            else if (radioTarget) radioTarget.TryInteract(gameObject);
+            else if (breakerTarget) breakerTarget.TryInteract(gameObject);
         }
     }
 
@@ -97,6 +102,15 @@ public class PlayerAimPickup : MonoBehaviour
         var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
         if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
             return hit.collider.GetComponentInParent<RadioInteractable>();
+        return null;
+    }
+
+    CircuitBreakerInteractable FindBreakerTarget(Ray ray, out RaycastHit hit)
+    {
+        hit = default;
+        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
+        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
+            return hit.collider.GetComponentInParent<CircuitBreakerInteractable>();
         return null;
     }
 
