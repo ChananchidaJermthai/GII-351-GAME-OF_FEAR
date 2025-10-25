@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 [DisallowMultipleComponent]
 public class PlayerAimPickup : MonoBehaviour
 {
-    [Header("Input (ใช้ Input Actions ได้)")]
-    public InputActionReference interactAction;     // Button
+    [Header("Input (Input System)")]
+    public InputActionReference interactAction; // Button
 
     [Header("References")]
     public Camera playerCamera;
@@ -22,7 +22,7 @@ public class PlayerAimPickup : MonoBehaviour
     public TMPro.TMP_Text promptText;
 #endif
 
-    [Header("Fallback (ถ้าไม่ได้ตั้ง Action)")]
+    [Header("Fallback Key (if no action)")]
     public KeyCode interactKeyLegacy = KeyCode.E;
 #if ENABLE_INPUT_SYSTEM
     public Key fallbackInteractKeyIS = Key.E;
@@ -51,23 +51,36 @@ public class PlayerAimPickup : MonoBehaviour
     {
         if (!playerCamera) return;
 
-        var ray = CenterRay();
+        var ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
         var hit = default(RaycastHit);
+        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
 
-        // ลำดับตรวจ: Item > Radio > CircuitBreaker
-        var itemTarget = FindItemTarget(ray, out hit);
-        var radioTarget = itemTarget ? null : FindRadioTarget(ray, out hit);
-        var breakerTarget = (itemTarget || radioTarget != null) ? null : FindBreakerTarget(ray, out hit);
+        // ลองหาเป้าหมายตามลำดับที่ต้องการ
+        ItemPickup3D itemTarget = null;
+        RadioInteractable radioTarget = null;
+        CircuitBreakerInteractable breakerTarget = null;
+        ShelfInteractable shelfTarget = null;
 
-        bool hasTarget = itemTarget != null || radioTarget != null || breakerTarget != null;
+        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
+        {
+            var tr = hit.collider.transform;
+
+            itemTarget = tr.GetComponentInParent<ItemPickup3D>();
+            if (itemTarget == null) radioTarget = tr.GetComponentInParent<RadioInteractable>();
+            if (itemTarget == null && radioTarget == null) breakerTarget = tr.GetComponentInParent<CircuitBreakerInteractable>();
+            if (itemTarget == null && radioTarget == null && breakerTarget == null) shelfTarget = tr.GetComponentInParent<ShelfInteractable>();
+        }
+
+        bool hasTarget = itemTarget || radioTarget || breakerTarget || shelfTarget;
 
         if (promptRoot) promptRoot.SetActive(hasTarget);
 #if TMP_PRESENT || UNITY_2021_1_OR_NEWER
         if (promptText)
         {
-            if (itemTarget) promptText.text = $" Press E Get {itemTarget.itemId} x {itemTarget.amount} ";
+            if (itemTarget) promptText.text = $" Press E Get {itemTarget.itemId} x{itemTarget.amount} ";
             else if (radioTarget) promptText.text = radioTarget.promptText;
             else if (breakerTarget) promptText.text = breakerTarget.promptText;
+            else if (shelfTarget) promptText.text = shelfTarget.promptText;
             else promptText.text = "";
         }
 #endif
@@ -82,36 +95,8 @@ public class PlayerAimPickup : MonoBehaviour
             if (itemTarget) itemTarget.TryPickup(gameObject);
             else if (radioTarget) radioTarget.TryInteract(gameObject);
             else if (breakerTarget) breakerTarget.TryInteract(gameObject);
+            else if (shelfTarget) shelfTarget.TryInteract(gameObject);
         }
-    }
-
-    Ray CenterRay() => new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-
-    ItemPickup3D FindItemTarget(Ray ray, out RaycastHit hit)
-    {
-        hit = default;
-        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
-        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
-            return hit.collider.GetComponentInParent<ItemPickup3D>();
-        return null;
-    }
-
-    RadioInteractable FindRadioTarget(Ray ray, out RaycastHit hit)
-    {
-        hit = default;
-        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
-        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
-            return hit.collider.GetComponentInParent<RadioInteractable>();
-        return null;
-    }
-
-    CircuitBreakerInteractable FindBreakerTarget(Ray ray, out RaycastHit hit)
-    {
-        hit = default;
-        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
-        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
-            return hit.collider.GetComponentInParent<CircuitBreakerInteractable>();
-        return null;
     }
 
     bool PressedInteract()
