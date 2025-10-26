@@ -738,7 +738,7 @@ public partial class @K_Player: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""4811c019-d8a5-412b-9310-6cc95e1cb191"",
-                    ""path"": ""<Keyboard>/e"",
+                    ""path"": ""<Keyboard>/1"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",

@@ -9,7 +9,7 @@ public class ShelfInteractable : MonoBehaviour
 
     [Header("UI Prompt")]
     //public string promp;
-    [TextArea] public string promptText = "Press E Open shelf";
+    [TextArea] public string promptText = "Press E Open";
 
     void Reset()
     {
