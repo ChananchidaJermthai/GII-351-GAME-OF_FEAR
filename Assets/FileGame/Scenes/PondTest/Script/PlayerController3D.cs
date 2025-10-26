@@ -14,8 +14,8 @@ public class PlayerController3D : MonoBehaviour
 
     // ===== Refs =====
     [Header("References")]
-    public Transform cameraHolder;        // ยึดกล้องเพื่อหมุน/เลื่อน Y ตอน Crouch
-    public Camera playerCamera;         // ถ้าไม่ได้ใช้ cameraHolder ให้กล้องจริงไว้ดู pitch
+    public Transform cameraHolder;
+    public Camera playerCamera;
     public InventoryLite inventory;
 
     // ===== Movement =====
@@ -33,8 +33,8 @@ public class PlayerController3D : MonoBehaviour
     public float heightLerpSpeed = 12f;
 
     [Header("Camera Crouch Offset")]
-    public float standCamY = 1.6f;  // local Y ของ cameraHolder ตอนยืน
-    public float crouchCamY = 1.0f;  // local Y ของ cameraHolder ตอนย่อ
+    public float standCamY = 1.6f;
+    public float crouchCamY = 1.0f;
     public float camLerpSpeed = 10f;
 
     [Header("Gravity (No Jump)")]
@@ -85,7 +85,7 @@ public class PlayerController3D : MonoBehaviour
     public float liftClearance = 0.05f;
     public float groundProbeExtra = 0.1f;
 
-    [Tooltip("เปิดไว้เพื่อ 'เคารพ' ค่าของ CharacterController จาก Inspector (height/center/radius) โดยไม่เขียนทับใน Awake)")]
+    [Tooltip("เคารพค่า CharacterController จาก Inspector (ไม่เขียนทับใน Awake)")]
     public bool respectControllerFromInspector = true;
 
     // ===== Runtime =====
@@ -94,16 +94,19 @@ public class PlayerController3D : MonoBehaviour
     Vector3 velocity;
     float currentSpeed;
 
-    bool isSprinting, isCrouching;
+    bool isSprinting, isCrouching, controlLocked;
     float stamina, lastSprintTime;
     float sanity;
     float feedbackTimer = -1f;
 
-    // ค่าก้นแคปซูล (local) เพื่อยึดไว้ขณะปรับความสูง
     float capsuleBottomLocalY;
-
-    // เก็บค่าเริ่มต้นของตำแหน่งกล้อง (X/Z คงไว้ เปลี่ยนเฉพาะ Y)
     Vector3 camLocalPos0;
+
+    // ---- external look override / follow target ----
+    float extYaw, extPitch, extBlendT, extBlendDur, extHoldT;
+    bool lookOverride;
+    Transform followTarget;     // <— เป้าหมายที่ให้กล้องตาม
+    float followRotSpeed = 8f;  // ค่าความไวในการหันตาม
 
     public bool IsSprinting => isSprinting;
     public bool IsCrouching => isCrouching;
@@ -125,14 +128,12 @@ public class PlayerController3D : MonoBehaviour
 
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!cameraHolder && playerCamera) cameraHolder = playerCamera.transform;
-        if (cameraHolder) camLocalPos0 = cameraHolder ? cameraHolder.localPosition : Vector3.zero;
+        if (cameraHolder) camLocalPos0 = cameraHolder.localPosition;
 
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
 
-        // ไม่แตะต้องค่า height/center/radius ถ้า respectControllerFromInspector = true
         if (!respectControllerFromInspector)
         {
-            // ตั้งค่าพื้นฐานให้ปลอดภัย ถ้าอยากให้สคริปต์เป็นคนกำหนด
             cc.stepOffset = Mathf.Max(cc.stepOffset, 0.25f);
             cc.skinWidth = Mathf.Max(cc.skinWidth, 0.02f);
             float minH = Mathf.Max(cc.radius * 2f + 0.01f, 1.2f);
@@ -140,7 +141,6 @@ public class PlayerController3D : MonoBehaviour
             var c0 = cc.center; c0.x = 0f; c0.z = 0f; c0.y = cc.height * 0.5f; cc.center = c0;
         }
 
-        // คำนวณตำแหน่งก้นแคปซูลจากค่าปัจจุบันใน Inspector
         capsuleBottomLocalY = cc.center.y - cc.height * 0.5f;
 
         stamina = staminaMax;
@@ -182,19 +182,23 @@ public class PlayerController3D : MonoBehaviour
 
     void Update()
     {
-        // ===== Read Input =====
-        Vector2 m = moveA != null ? moveA.ReadValue<Vector2>() : Vector2.zero;
-        Vector2 l = lookA != null ? lookA.ReadValue<Vector2>() : Vector2.zero;
-        bool wantSprint = runA != null && runA.IsPressed();
-        bool crouchInput = false;
-        if (crouchA != null) crouchInput = crouchToggle ? crouchA.WasPressedThisFrame() : crouchA.IsPressed();
-        bool useItemPressed = useItemA != null && useItemA.WasPressedThisFrame();
+        // ===== External look override / follow (กันดีด) =====
+        bool usingOverride = ApplyExternalLookIfAny();
 
-        // ===== Look =====
-        float yawDelta = l.x * sensX;
-        float pitchDelta = -l.y * sensY;
-        yaw += yawDelta;
-        pitch = Mathf.Clamp(pitch + pitchDelta, minPitch, maxPitch);
+        // ===== Inputs =====
+        Vector2 move = controlLocked ? Vector2.zero : (moveA != null ? moveA.ReadValue<Vector2>() : Vector2.zero);
+        Vector2 look = (!usingOverride && !controlLocked && lookA != null) ? lookA.ReadValue<Vector2>() : Vector2.zero;
+        bool wantSprint = !controlLocked && runA != null && runA.IsPressed();
+        bool crouchInput = false;
+        if (!controlLocked && crouchA != null)
+            crouchInput = crouchToggle ? crouchA.WasPressedThisFrame() : crouchA.IsPressed();
+        bool useItemPressed = !controlLocked && useItemA != null && useItemA.WasPressedThisFrame();
+
+        // ===== Accumulate yaw/pitch — ใช้ที่เดียวเสมอ =====
+        yaw += look.x * sensX;
+        pitch = Mathf.Clamp(pitch - look.y * sensY, minPitch, maxPitch);
+
+        // ===== Apply rotation =====
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
         if (cameraHolder) cameraHolder.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         else if (playerCamera) playerCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
@@ -205,7 +209,7 @@ public class PlayerController3D : MonoBehaviour
         if (isCrouching) isSprinting = false;
 
         // ===== Sprint & Stamina =====
-        bool canMove = m.sqrMagnitude > 0.001f;
+        bool canMove = move.sqrMagnitude > 0.001f;
         bool canStartSprint = !isCrouching && canMove && stamina >= minSprintToStart;
         if (wantSprint && canStartSprint) isSprinting = true;
         if (!wantSprint || !canMove || stamina <= 0f) isSprinting = false;
@@ -222,7 +226,7 @@ public class PlayerController3D : MonoBehaviour
         UpdateStaminaUI();
 
         // ===== Move =====
-        Vector3 wish = transform.right * m.x + transform.forward * m.y;
+        Vector3 wish = transform.right * move.x + transform.forward * move.y;
         if (wish.sqrMagnitude > 1f) wish.Normalize();
         float targetSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
         float target = targetSpeed * wish.magnitude;
@@ -231,7 +235,7 @@ public class PlayerController3D : MonoBehaviour
         velocity.x = wish.x * currentSpeed;
         velocity.z = wish.z * currentSpeed;
 
-        // ===== Grounded / Gravity =====
+        // ===== Ground / Gravity =====
         bool grounded = IsGroundedSphere();
         velocity.y = grounded ? Mathf.Min(velocity.y, stickToGroundForce) : velocity.y + gravity * Time.deltaTime;
 
@@ -239,19 +243,17 @@ public class PlayerController3D : MonoBehaviour
         float wantHeight = Mathf.Max(isCrouching ? crouchHeight : standHeight, cc.radius * 2f + 0.01f);
         cc.height = Mathf.Lerp(cc.height, wantHeight, Time.deltaTime * heightLerpSpeed);
         var c = cc.center;
-        c.y = capsuleBottomLocalY + cc.height * 0.5f;   // ยึดก้นไว้เท่าเดิม
+        c.y = capsuleBottomLocalY + cc.height * 0.5f;
         cc.center = c;
 
-        // ===== Camera Y Lerp (นี่แหละที่ทำให้กล้องย่อตาม) =====
+        // ===== Camera crouch offset =====
         if (cameraHolder)
         {
             float targetCamY = isCrouching ? crouchCamY : standCamY;
-            var local = cameraHolder.localPosition;
-            local.y = Mathf.Lerp(local.y, targetCamY, Time.deltaTime * camLerpSpeed);
-            // คง x/z เริ่มต้น
-            local.x = camLocalPos0.x;
-            local.z = camLocalPos0.z;
-            cameraHolder.localPosition = local;
+            var lp = cameraHolder.localPosition;
+            lp.y = Mathf.Lerp(lp.y, targetCamY, Time.deltaTime * camLerpSpeed);
+            lp.x = camLocalPos0.x; lp.z = camLocalPos0.z;
+            cameraHolder.localPosition = lp;
         }
 
         // ===== Apply Move =====
@@ -260,7 +262,7 @@ public class PlayerController3D : MonoBehaviour
         // ===== Footstep =====
         UpdateFootstep();
 
-        // ===== Sanity & UseItem =====
+        // ===== Sanity & Use Item =====
         if (sanityRegenPerSec > 0f && sanity < sanityMax)
         {
             sanity = Mathf.Min(sanityMax, sanity + sanityRegenPerSec * Time.deltaTime);
@@ -275,7 +277,100 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // ===== Ground helpers =====
+    // ===== External control for cutscene / trigger =====
+    public void LockControl(bool locked)
+    {
+        controlLocked = locked;
+        var pi = GetComponent<PlayerInput>();
+        if (pi) pi.enabled = !locked;
+        if (locked && TryGetComponent<CharacterController>(out var ch)) ch.Move(Vector3.zero);
+    }
+
+    // เริ่มโหมด "กล้องตามเป้า"
+    public void StartLookFollow(Transform target, float rotateSpeed = 8f, bool lockControl = true)
+    {
+        followTarget = target;
+        followRotSpeed = Mathf.Max(0.1f, rotateSpeed);
+        if (lockControl) LockControl(true);
+        lookOverride = true; // ให้ ApplyExternalLookIfAny ทำงาน
+    }
+
+    // หยุดตามเป้า
+    public void StopLookFollow(bool unlockControl = true)
+    {
+        followTarget = null;
+        lookOverride = false;
+        if (unlockControl) LockControl(false);
+    }
+
+    // Look-at once (ยังคงมีอยู่ ใช้ได้เหมือนเดิม)
+    public void LookAtWorld(Vector3 worldPos, float rotateSeconds = 0.35f, float holdSeconds = 0.6f)
+    {
+        Vector3 flat = worldPos - transform.position; flat.y = 0f;
+        if (flat.sqrMagnitude < 1e-4f) return;
+
+        extYaw = Quaternion.LookRotation(flat.normalized, Vector3.up).eulerAngles.y;
+
+        if (cameraHolder)
+        {
+            Vector3 camTo = worldPos - cameraHolder.position;
+            Vector3 f = camTo.normalized;
+            extPitch = -Mathf.Asin(Mathf.Clamp(f.y, -1f, 1f)) * Mathf.Rad2Deg;
+            extPitch = Mathf.Clamp(extPitch, minPitch, maxPitch);
+        }
+        else extPitch = 0f;
+
+        extBlendT = 0f;
+        extBlendDur = Mathf.Max(0.01f, rotateSeconds);
+        extHoldT = Mathf.Max(0f, holdSeconds);
+        lookOverride = true;
+    }
+
+    // อัปเดตมุมเมื่ออยู่ในโหมด override / follow
+    bool ApplyExternalLookIfAny()
+    {
+        // โหมด "ตามเป้า": คำนวณ yaw/pitch เป้าหมาย "ทุกเฟรม"
+        if (followTarget != null)
+        {
+            Vector3 targetPos = followTarget.position;
+            // yaw
+            Vector3 flat = targetPos - transform.position; flat.y = 0f;
+            if (flat.sqrMagnitude > 1e-6f)
+            {
+                float targetYaw = Quaternion.LookRotation(flat.normalized, Vector3.up).eulerAngles.y;
+                float k = 1f - Mathf.Exp(-followRotSpeed * Time.deltaTime); // smooth lerp factor
+                yaw = Mathf.LerpAngle(yaw, targetYaw, k);
+            }
+            // pitch
+            if (cameraHolder)
+            {
+                Vector3 camTo = targetPos - cameraHolder.position;
+                Vector3 f = camTo.normalized;
+                float targetPitch = -Mathf.Asin(Mathf.Clamp(f.y, -1f, 1f)) * Mathf.Rad2Deg;
+                targetPitch = Mathf.Clamp(targetPitch, minPitch, maxPitch);
+                float k = 1f - Mathf.Exp(-followRotSpeed * Time.deltaTime);
+                pitch = Mathf.Lerp(pitch, targetPitch, k);
+            }
+            return true; // ข้ามการอ่านเมาส์
+        }
+
+        // โหมด "หันไปรอบเดียว + hold"
+        if (!lookOverride) return false;
+
+        extBlendT += Time.deltaTime / Mathf.Max(0.01f, extBlendDur);
+        float k2 = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(extBlendT));
+        yaw = Mathf.LerpAngle(yaw, extYaw, k2);
+        pitch = Mathf.Lerp(pitch, extPitch, k2);
+
+        if (extBlendT >= 1f)
+        {
+            extHoldT -= Time.deltaTime;
+            if (extHoldT <= 0f) lookOverride = false;
+        }
+        return true;
+    }
+
+    // ===== Helpers =====
     bool IsGroundedSphere()
     {
         Vector3 bottom = transform.TransformPoint(new Vector3(0f, capsuleBottomLocalY + cc.skinWidth + groundProbeExtra, 0f));
@@ -289,7 +384,6 @@ public class PlayerController3D : MonoBehaviour
         transform.position += Vector3.up * up;
     }
 
-    // ===== Footstep =====
     void UpdateFootstep()
     {
         if (!footstepEnable || footstepSource == null) return;
@@ -327,7 +421,6 @@ public class PlayerController3D : MonoBehaviour
             footstepSource.volume = vol;
     }
 
-    // ===== Use Item =====
     public void TryUseConfiguredItem()
     {
         if (string.IsNullOrEmpty(useItemKeyId)) { ShowFeedback("UseItem KeyID not set."); return; }
@@ -349,13 +442,18 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    public void AddSanity(float amount)
+    {
+        sanity = Mathf.Clamp(sanity + amount, 0f, sanityMax);
+        UpdateSanityUI();
+    }
+
     void ShowFeedback(string msg)
     {
         if (useItemFeedbackText) { useItemFeedbackText.text = msg; feedbackTimer = feedbackHideDelay; }
         else Debug.Log(msg);
     }
 
-    // ===== UI =====
     void UpdateSanityUI()
     {
         if (sanitySlider) sanitySlider.value = Mathf.Clamp01(sanity / sanityMax);
