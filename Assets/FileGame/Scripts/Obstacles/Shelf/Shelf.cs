@@ -1,37 +1,55 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Events;
 
 [DisallowMultipleComponent]
 public class Shelf : MonoBehaviour
 {
     public enum Axis { X, Y, Z }
+    public enum MotionType { Rotation, Slide }
 
     [System.Serializable]
     public class DoorConfig
     {
+        [Header("Target")]
         public Transform door;
-        [Tooltip("แกนหมุนของบานนี้ (ส่วนใหญ่เป็น Y)")]
+
+        [Header("Motion")]
+        public MotionType motion = MotionType.Rotation;
+
+        [Tooltip("แกนสำหรับ Rotation หรือ Slide")]
         public Axis axis = Axis.Y;
+
+        [Tooltip("สลับทิศทาง (เช่น ซ้าย/ขวา)")]
+        public bool invert = false;
+
+        [Header("Rotation Settings")]
         [Tooltip("องศาที่เปิดจากตำแหน่งปิด (สัมพัทธ์)")]
         public float openAngle = 90f;
-        [Tooltip("กลับทิศทาง (เช่น ซ้าย = - , ขวา = +)")]
-        public bool invert = false;
+
+        [Header("Slide Settings")]
+        [Tooltip("ระยะเลื่อนจากตำแหน่งปิด (หน่วยเมตร)")]
+        public float slideDistance = 0.3f;
 
         [HideInInspector] public Quaternion closedRot;
         [HideInInspector] public Quaternion openRot;
+        [HideInInspector] public Vector3 closedLocalPos;
+        [HideInInspector] public Vector3 openLocalPos;
     }
 
-    [Header("Doors (ตั้งได้แยกบาน)")]
-    public DoorConfig left = new DoorConfig();
-    public DoorConfig right = new DoorConfig();
+    [Header("Doors (List)")]
+    public List<DoorConfig> doors = new List<DoorConfig>();
 
     [Header("Animation")]
     [Min(0.1f)] public float openSpeed = 2f;
-    public bool allowToggle = false;        // เปิดแล้วกดซ้ำให้ปิดได้
+    [Tooltip("เปิดแล้วกดซ้ำเพื่อปิดได้")]
+    public bool allowToggle = false;
 
     [Header("Lock Settings")]
     public bool isLocked = false;
+    [Tooltip("Key ID ใน InventoryLite")]
     public string requiredKeyId = "Key_Shelf";
+    [Tooltip("ใช้กุญแจแล้วให้หายไปหรือไม่")]
     public bool consumeKeyOnUse = false;
 
     [Header("SFX")]
@@ -51,7 +69,7 @@ public class Shelf : MonoBehaviour
 
     [Header("Debug / Test")]
     public bool debugLogs = false;
-    [Tooltip("ทดสอบ: ให้เปิดเองทันทีเมื่อกด Play (ไว้เช็คว่าบานหมุนจริง)")]
+    [Tooltip("ทดสอบ: ให้เปิดเองทันทีเมื่อกด Play (ไว้เช็คว่าบานขยับจริง)")]
     public bool autoOpenOnPlay = false;
 
     // runtime
@@ -69,37 +87,55 @@ public class Shelf : MonoBehaviour
             audioSource.spatialBlend = 1f; // 3D ออกมาจากตำแหน่งตู้
         }
 
-        CacheDoorRotations(left);
-        CacheDoorRotations(right);
+        CacheAllDoorStates();
 
         if (autoOpenOnPlay)
             OpenNow(); // ทดสอบทันทีตอนเริ่มเกม
     }
 
-    void CacheDoorRotations(DoorConfig d)
+    void CacheAllDoorStates()
     {
-        if (!d.door) return;
-        d.closedRot = d.door.localRotation;
-
-        Vector3 axis = Vector3.up;
-        switch (d.axis)
+        foreach (var d in doors)
         {
-            case Axis.X: axis = Vector3.right; break;
-            case Axis.Y: axis = Vector3.up; break;
-            case Axis.Z: axis = Vector3.forward; break;
-        }
+            if (!d.door) continue;
 
-        float signedAngle = (d.invert ? -1f : 1f) * d.openAngle;
-        d.openRot = d.closedRot * Quaternion.AngleAxis(signedAngle, axis);
+            // เก็บสถานะ "ปิด"
+            d.closedRot = d.door.localRotation;
+            d.closedLocalPos = d.door.localPosition;
+
+            // คำนวณแกนท้องถิ่น
+            Vector3 axisVec = AxisToLocal(d);
+
+            // Rotation target
+            float signedAngle = (d.invert ? -1f : 1f) * d.openAngle;
+            d.openRot = d.closedRot * Quaternion.AngleAxis(signedAngle, axisVec);
+
+            // Slide target
+            float signedDist = (d.invert ? -1f : 1f) * d.slideDistance;
+            d.openLocalPos = d.closedLocalPos + axisVec.normalized * signedDist;
+        }
     }
 
-    // ===== Interact entry =====
+    Vector3 AxisToLocal(DoorConfig d)
+    {
+        if (!d.door) return Vector3.up;
+        switch (d.axis)
+        {
+            case Axis.X: return d.door.transform.right;
+            case Axis.Y: return d.door.transform.up;
+            case Axis.Z: return d.door.transform.forward;
+        }
+        return Vector3.up;
+    }
+
+    // ===== Interact entry (ใช้ร่วมกับ PlayerAimPickup) =====
     public void TryInteract(GameObject playerGO)
     {
         if (debugLogs) Debug.Log("[Shelf] TryInteract");
+
         if (!_isOpen)
         {
-            // ถ้าล็อก ให้เช็คกุญแจ
+            // เช็คล็อก
             if (isLocked)
             {
                 if (!_playerInv && playerGO) _playerInv = playerGO.GetComponentInParent<InventoryLite>();
@@ -125,9 +161,7 @@ public class Shelf : MonoBehaviour
         }
         else
         {
-            if (allowToggle)
-                CloseNow();
-            // ถ้าไม่ allowToggle ก็ไม่ทำอะไร (เปิดแล้ว)
+            if (allowToggle) CloseNow();
         }
     }
 
@@ -160,22 +194,34 @@ public class Shelf : MonoBehaviour
         {
             t += Time.deltaTime * openSpeed;
             float k = Mathf.SmoothStep(0, 1, t);
-            ApplyProgress(left, toOpen ? k : 1f - k);
-            ApplyProgress(right, toOpen ? k : 1f - k);
+            ApplyProgressAll(toOpen ? k : 1f - k);
             yield return null;
         }
-        ApplyProgress(left, toOpen ? 1f : 0f);
-        ApplyProgress(right, toOpen ? 1f : 0f);
+        ApplyProgressAll(toOpen ? 1f : 0f);
 
         _isOpen = toOpen;
         if (toOpen) onOpened?.Invoke();
         else onClosed?.Invoke();
     }
 
-    void ApplyProgress(DoorConfig d, float k)
+    void ApplyProgressAll(float k01)
+    {
+        foreach (var d in doors)
+            ApplyProgressOne(d, k01);
+    }
+
+    void ApplyProgressOne(DoorConfig d, float k)
     {
         if (!d.door) return;
-        d.door.localRotation = Quaternion.Slerp(d.closedRot, d.openRot, k);
+
+        if (d.motion == MotionType.Rotation)
+        {
+            d.door.localRotation = Quaternion.Slerp(d.closedRot, d.openRot, k);
+        }
+        else // Slide
+        {
+            d.door.localPosition = Vector3.Lerp(d.closedLocalPos, d.openLocalPos, k);
+        }
     }
 
     void ShowMsg(string msg)
@@ -184,25 +230,32 @@ public class Shelf : MonoBehaviour
         else Debug.Log($"[Shelf] {msg}");
     }
 
-    // ===== Gizmos ช่วยดู (สีเขียว=แกน, สีเหลือง=ทิศเปิด) =====
+    // ===== Gizmos ช่วยดูทิศทาง =====
     void OnDrawGizmosSelected()
     {
-        DrawDoorGizmo(left, Color.yellow);
-        DrawDoorGizmo(right, Color.cyan);
+        if (doors == null) return;
+        foreach (var d in doors)
+            DrawDoorGizmo(d);
     }
 
-    void DrawDoorGizmo(DoorConfig d, Color c)
+    void DrawDoorGizmo(DoorConfig d)
     {
         if (d == null || d.door == null) return;
-        Gizmos.color = c;
-        var p = d.door.position;
-        Vector3 axis = Vector3.up;
+
+        // แกนในพื้นที่โลคัลของบาน
+        Vector3 axisVec;
         switch (d.axis)
         {
-            case Axis.X: axis = d.door.right; break;
-            case Axis.Y: axis = d.door.up; break;
-            case Axis.Z: axis = d.door.forward; break;
+            case Axis.X: axisVec = d.door.right; break;
+            case Axis.Y: axisVec = d.door.up; break;
+            default: axisVec = d.door.forward; break;
         }
-        Gizmos.DrawLine(p, p + axis * 0.25f);
+        if (d.invert) axisVec = -axisVec;
+
+        Gizmos.color = (d.motion == MotionType.Rotation) ? new Color(1f, 0.85f, 0.2f, 0.9f)
+                                                         : new Color(0.2f, 0.85f, 1f, 0.9f);
+        var p = d.door.position;
+        Gizmos.DrawLine(p, p + axisVec * 0.25f);
+        Gizmos.DrawSphere(p + axisVec * 0.25f, 0.01f);
     }
 }
