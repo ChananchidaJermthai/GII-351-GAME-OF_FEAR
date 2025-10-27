@@ -1,0 +1,152 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &5379548566961399904
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 31.236
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.84
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 3.51
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -6313225623929295345, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: -5399480856377495276, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: -2418593168561999354, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: -865742168866259851, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Name
+      value: Item Tape 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2365858610744869290, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4610667855586362634, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6067357007385532407}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 755583852563126398}
+  m_SourcePrefab: {fileID: 100100000, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+--- !u!1 &5072908308021450033 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 6992d0d2fc8d69e45965b211ce38d115, type: 3}
+  m_PrefabInstance: {fileID: 5379548566961399904}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &6067357007385532407
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5072908308021450033}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.00016175317, y: 0.0015062633, z: 0.0009806708}
+  m_Center: {x: 0, y: 0, z: 0.000021059832}
+--- !u!114 &755583852563126398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5072908308021450033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64441cd54529fee4b9e07fd2e9f88c37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemPickup3D
+  itemId: Tape1
+  amount: 1
+  destroyOnPickup: 1
+  pickupVfxPrefab: {fileID: 0}
+  pickupSfx: {fileID: 0}
+  sfxVolume: 0.85
+  onPicked:
+    m_PersistentCalls:
+      m_Calls: []
