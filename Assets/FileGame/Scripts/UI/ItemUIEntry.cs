@@ -22,11 +22,11 @@ public class ItemUIEntry : MonoBehaviour
             foreach (var t in tmps)
             {
                 var nm = t.name.ToLowerInvariant();
-                if (!nameText && nm.Contains("name")) nameText = t;
+                if (!nameText  && nm.Contains("name"))  nameText  = t;
                 if (!countText && nm.Contains("count")) countText = t;
             }
             // ถ้ายังไม่เจอ ก็ตั้งสำรอง
-            if (!nameText && tmps.Length > 0) nameText = tmps[0];
+            if (!nameText  && tmps.Length > 0) nameText  = tmps[0];
             if (!countText && tmps.Length > 1) countText = tmps[1];
         }
     }
@@ -36,7 +36,7 @@ public class ItemUIEntry : MonoBehaviour
         if (!iconImage || !nameText || !countText) TryAutoBind();
 
         if (iconImage && icon) iconImage.sprite = icon;
-        if (nameText) nameText.text = itemId;
+        if (nameText)  nameText.text  = itemId;
         if (countText) countText.text = "x" + count.ToString();
     }
 }

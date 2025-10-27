@@ -14,7 +14,7 @@ public class InventoryUI : MonoBehaviour
 
     [Header("Panel & Layout")]
     [SerializeField] private GameObject panel;             // Panel หลัก (SetActive)
-    [SerializeField] private Transform contentRoot;        // ScrollView/Viewport/Content
+    [SerializeField] private RectTransform contentRoot;    // <<--- เปลี่ยนเป็น RectTransform เพื่อใช้ขนาดแนวดิ่ง
     [SerializeField] private GameObject itemEntryPrefab;   // พรีแฟบ 1 แถว (Image + TMP + ItemUIEntry)
     [SerializeField] private ScrollRect scrollRect;        // อ้าง ScrollRect (สำคัญ)
 
@@ -40,6 +40,12 @@ public class InventoryUI : MonoBehaviour
     [SerializeField, Min(0.1f), Tooltip("จำนวนพิกเซลต่อ 1 notch ของล้อเมาส์ (ปรับความไว)")]
     private float wheelPixelsPerNotch = 24f;
 
+    [Header("Content Auto Size (Fallback)")]
+    [Tooltip("ถ้าโครงสร้าง Layout ไม่ครบ จะคำนวณความสูง Content ให้เองหลังสร้างรายการ")]
+    [SerializeField] private bool forceContentAutoSize = true;
+    [Tooltip("ความสูงต่อแถว (ใช้เมื่ออ่านค่าจาก Layout ไม่ได้)")]
+    [SerializeField, Min(20f)] private float fallbackRowHeight = 72f;
+
     // runtime
     private readonly Dictionary<string, Sprite> iconDict = new(StringComparer.OrdinalIgnoreCase);
     private int lastInventoryHash = 0;
@@ -55,7 +61,7 @@ public class InventoryUI : MonoBehaviour
     private void Awake()
     {
         if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
-        if (!scrollRect && contentRoot) scrollRect = contentRoot.GetComponentInParent<ScrollRect>();
+        EnsureScrollBindings();        // <<--- บังคับ ScrollRect ให้ผูก Content/Viewport ให้ครบ
         BuildIconDict();
         if (panel) panel.SetActive(false);
     }
@@ -126,20 +132,104 @@ public class InventoryUI : MonoBehaviour
     {
         if (!inventory || !contentRoot || !itemEntryPrefab) return;
 
+        // ล้างลูกเดิม
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
             Destroy(contentRoot.GetChild(i).gameObject);
 
+        // เติมใหม่จาก Inventory
         var all = inventory.GetAll(); // IReadOnlyDictionary<string,int>
         foreach (var kv in all)
         {
             var go = Instantiate(itemEntryPrefab, contentRoot);
             var row = go.GetComponent<ItemUIEntry>();
             if (!row) row = go.AddComponent<ItemUIEntry>();
+
             Sprite icon = iconDict.TryGetValue(kv.Key, out var sp) ? sp : null;
             row.SetData(kv.Key, kv.Value, icon);
         }
 
-        if (scrollRect) scrollRect.verticalNormalizedPosition = 1f; // ไปบนสุด
+        // ⮕ จัด layout ให้คำนวณ PreferredHeight ก่อน
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+
+        // ⮕ บังคับให้ Content สูงพอจะเลื่อน (กันพลาดเรื่อง Layout ตั้งไม่ครบ)
+        if (forceContentAutoSize) EnsureContentHeight();
+
+        // ⮕ รีเซ็ตตำแหน่งสกรอลล์ไปบนสุด
+        if (scrollRect) scrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    // ----- Auto size content height (fallback) -----
+    private void EnsureContentHeight()
+    {
+        if (!contentRoot) return;
+
+        float total = 0f;
+
+        // อ่าน spacing / padding ถ้ามี VerticalLayoutGroup
+        var vlg = contentRoot.GetComponent<VerticalLayoutGroup>();
+        float spacing = vlg ? vlg.spacing : 0f;
+        int padTop = vlg ? vlg.padding.top : 0;
+        int padBottom = vlg ? vlg.padding.bottom : 0;
+
+        total += padTop + padBottom;
+
+        bool first = true;
+        for (int i = 0; i < contentRoot.childCount; i++)
+        {
+            var child = contentRoot.GetChild(i) as RectTransform;
+            if (!child || !child.gameObject.activeSelf) continue;
+
+            float h = LayoutUtility.GetPreferredHeight(child);
+            if (h <= 1f)
+            {
+                var le = child.GetComponent<LayoutElement>();
+                if (le && le.preferredHeight > 1f) h = le.preferredHeight;
+                if (h <= 1f) h = fallbackRowHeight; // กันตาย
+            }
+
+            if (!first) total += spacing;
+            total += h;
+            first = false;
+        }
+
+        contentRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, total);
+
+        // ให้ Canvas คำนวณใหม่ทันที
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+    }
+
+    // ----- Wheel scrolling by pixels (no focus required) -----
+    private void ScrollByPixels(float deltaPixels)
+    {
+        if (!scrollRect || !scrollRect.content) return;
+        RectTransform content = scrollRect.content;
+        RectTransform viewport = scrollRect.viewport ? scrollRect.viewport : (RectTransform)scrollRect.transform;
+
+        // ใน ScrollRect: pos.y มากขึ้น = เลื่อนลง
+        Vector2 pos = content.anchoredPosition;
+        float maxY = Mathf.Max(0f, content.rect.height - viewport.rect.height);
+        pos.y = Mathf.Clamp(pos.y - deltaPixels, 0f, maxY);
+        content.anchoredPosition = pos;
+    }
+
+    // ----- Ensure ScrollRect bindings -----
+    private void EnsureScrollBindings()
+    {
+        // หา ScrollRect อัตโนมัติ ถ้ายังไม่ได้อ้าง
+        if (!scrollRect)
+            scrollRect = GetComponentInChildren<ScrollRect>(includeInactive: true);
+
+        // บังคับให้ ScrollRect ผูก Content = contentRoot
+        if (scrollRect && contentRoot)
+            scrollRect.content = contentRoot;
+
+        // บังคับหา Viewport ถ้ายังว่าง (มักชื่อ "Viewport")
+        if (scrollRect && !scrollRect.viewport)
+        {
+            var vp = scrollRect.transform.Find("Viewport") as RectTransform;
+            if (vp) scrollRect.viewport = vp;
+        }
     }
 
     private bool UpdateInventoryHashIfChanged()
@@ -166,20 +256,6 @@ public class InventoryUI : MonoBehaviour
             }
             return h;
         }
-    }
-
-    // ----- Wheel scrolling by pixels (no focus required) -----
-    private void ScrollByPixels(float deltaPixels)
-    {
-        if (!scrollRect || !scrollRect.content) return;
-        RectTransform content = scrollRect.content;
-        RectTransform viewport = scrollRect.viewport ? scrollRect.viewport : (RectTransform)scrollRect.transform;
-
-        // ใน ScrollRect: pos.y มากขึ้น = เลื่อนลง
-        Vector2 pos = content.anchoredPosition;
-        float maxY = Mathf.Max(0f, content.rect.height - viewport.rect.height);
-        pos.y = Mathf.Clamp(pos.y - deltaPixels, 0f, maxY);
-        content.anchoredPosition = pos;
     }
 
 #if ENABLE_INPUT_SYSTEM
