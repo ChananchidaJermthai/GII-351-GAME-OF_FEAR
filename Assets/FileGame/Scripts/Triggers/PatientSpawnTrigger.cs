@@ -119,3 +119,4 @@ public class PatientSpawnTrigger : MonoBehaviour
         if (pc3d) { pc3d.AddSanity(amount); return; }
     }
 }
+

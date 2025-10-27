@@ -130,7 +130,7 @@ MonoBehaviour:
   destroyOnPickup: 1
   pickupVfxPrefab: {fileID: 0}
   pickupSfx: {fileID: 8300000, guid: 2e20a7650746d9b4dbe9b1cedfd4b7f7, type: 3}
-  sfxVolume: 0.85
+  sfxVolume: 0.35
   onPicked:
     m_PersistentCalls:
       m_Calls: []
