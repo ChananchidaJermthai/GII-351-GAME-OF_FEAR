@@ -76,6 +76,22 @@ public class Flashlight : MonoBehaviour
     [Header("Auto-Setup")]
     public bool autoFindSpotFromChildren = true;
 
+    // ===== FarFill (No-Shadow) Add-on (เพิ่มเข้าไป โดยไม่ตัด logic เดิม) =====
+    [Header("FarFill (No Shadows)")]
+    public bool ff_enable = true;                            // เปิด/ปิดไฟส่องไกล
+    [Range(0f, 1f)] public float ff_intensityFactor = 0.35f; // ความสว่าง FarFill = main.intensity * factor
+    [Min(0.1f)] public float ff_range = 35f;                 // ระยะไกล
+    [Range(-10f, 40f)] public float ff_angleOffset = 5f;     // มุมของ Far = main.spotAngle + offset
+    public bool ff_copyCookie = true;                        // คัดลอก cookie จากไฟหลัก
+
+    [Header("Flicker (FarFill เท่านั้น)")]
+    public bool ff_flicker = false;                          // เปิด flicker ที่ Far เพื่อไม่ให้เงาสั่น
+    [Range(0f, 0.5f)] public float ff_flickerAmp = 0.10f;
+    [Min(0.1f)] public float ff_flickerSpeed = 10f;
+
+    [Header("FarFill Smoothing")]
+    [Min(0.1f)] public float ff_lerpSpeed = 10f;
+
     // ===== Runtime =====
     private PlayerInput playerInput;
     private InputAction aToggle, aFocus, aReload, aBrightUp, aBrightDown;
@@ -87,6 +103,8 @@ public class Flashlight : MonoBehaviour
     private bool inBurst = false;
     private float burstEndTime = 0f, nextFlicker = 0f;
     private float perlinT = 0f;
+
+    private Light _ff; // FarFill light (ไม่สร้างเงา)
 
     void Reset()
     {
@@ -139,6 +157,10 @@ public class Flashlight : MonoBehaviour
         desiredIntensity = CalcTargetIntensity();
         desiredRange = CalcTargetRange();
         desiredSpotAngle = baseSpotAngle;
+
+        // === สร้าง FarFill (ถ้าเปิดใช้) และตั้งค่าเริ่มต้น ===
+        FF_Ensure(spot);
+        if (_ff) FF_ApplyImmediate(spot);
     }
 
     void Update()
@@ -147,6 +169,9 @@ public class Flashlight : MonoBehaviour
         SimulateBatteryAndFlicker(Time.deltaTime);
         UpdateTargets();
         ApplyLight(Time.deltaTime);
+
+        // อัปเดต FarFill ทุกเฟรม (แยกจากไฟหลัก เพื่อไม่ให้เงาเพี้ยน)
+        FF_Update(spot, isOn);
     }
 
     void HandleInputsFallback()
@@ -177,7 +202,6 @@ public class Flashlight : MonoBehaviour
         // ถ้าเต็มอยู่แล้ว ไม่ต้องใช้ของ
         if (batteryRemain >= batteryCapacity - 0.001f)
         {
-            // Debug.Log("[Flashlight] Battery already full.");
             return false;
         }
 
@@ -201,8 +225,6 @@ public class Flashlight : MonoBehaviour
             return false;
         }
 
-        // ถ้ายังไม่ต้อง consume แต่อยากตรวจว่ามีของไหม สามารถเช็คด้วย Consume แบบ dry-run ได้ถ้ามีเมธอดนับ
-        // ที่นี่เราใช้แนวทางง่าย: พยายาม Consume 1 ชิ้นเลย (ตามสเป็กคุณ: ใช้แล้วของหาย)
         if (reloadConsumesItem)
         {
             bool ok = playerInventory.Consume(batteryItemId, 1);
@@ -213,7 +235,6 @@ public class Flashlight : MonoBehaviour
                 return false;
             }
         }
-        // ถ้าไม่ต้อง consume ก็จะไม่หาย — แต่ตาม logic ที่ให้มา “ใช้แล้ว Item หาย” จึงควรเปิด reloadConsumesItem = true
 
         // เติมพลังงาน
         float before = batteryRemain;
@@ -296,5 +317,58 @@ public class Flashlight : MonoBehaviour
         spot.range = Mathf.Lerp(spot.range, desiredRange, lerp);
         spot.spotAngle = Mathf.Lerp(spot.spotAngle, desiredSpotAngle, focusTransition * dt);
         spot.enabled = (spot.intensity > 0.02f && isOn);
+    }
+
+    // ==================== FarFill Helpers ====================
+    private void FF_Ensure(Light main)
+    {
+        if (!ff_enable || !main) return;
+        if (_ff) return;
+
+        var tf = main.transform.Find("FarFill");
+        if (tf) _ff = tf.GetComponent<Light>();
+
+        if (!_ff)
+        {
+            var go = new GameObject("FarFill");
+            go.transform.SetParent(main.transform, false);
+            _ff = go.AddComponent<Light>();
+            _ff.type = LightType.Spot;
+            _ff.shadows = LightShadows.None; // สำคัญ: ไม่สร้างเงา
+            _ff.intensity = 0f;               // เริ่มนิ่ม ๆ
+        }
+    }
+
+    private void FF_ApplyImmediate(Light main)
+    {
+        if (!_ff || !main) return;
+        _ff.color = main.color;
+        _ff.range = ff_range;
+        _ff.spotAngle = Mathf.Clamp(main.spotAngle + ff_angleOffset, 1f, 80f);
+        if (ff_copyCookie) _ff.cookie = main.cookie;
+
+        float baseI = (isOn && main.enabled) ? main.intensity * ff_intensityFactor : 0f;
+        _ff.intensity = baseI;
+        _ff.enabled = _ff.intensity > 0.02f;
+    }
+
+    private void FF_Update(Light main, bool on)
+    {
+        if (!ff_enable) { if (_ff) _ff.enabled = false; return; }
+        if (!_ff) FF_Ensure(main);
+        if (!_ff || !main) return;
+
+        // ซิงก์พื้นฐานทุกเฟรม
+        _ff.color = main.color;
+        _ff.range = ff_range;
+        _ff.spotAngle = Mathf.Clamp(main.spotAngle + ff_angleOffset, 1f, 80f);
+        if (ff_copyCookie) _ff.cookie = main.cookie;
+
+        float baseI = (on && main.enabled) ? main.intensity * ff_intensityFactor : 0f;
+        if (ff_flicker && baseI > 0f)
+            baseI *= 1f + Mathf.Sin(Time.time * ff_flickerSpeed) * ff_flickerAmp;
+
+        _ff.intensity = Mathf.MoveTowards(_ff.intensity, baseI, ff_lerpSpeed * Time.deltaTime);
+        _ff.enabled = _ff.intensity > 0.02f;
     }
 }
