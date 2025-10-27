@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.AI;
 
+[RequireComponent(typeof(NavMeshAgent))]
 public class GhostChase : MonoBehaviour
 {
     [Header("Chase Settings")]
@@ -8,10 +10,19 @@ public class GhostChase : MonoBehaviour
     [SerializeField] private float detectRadius = 20f;   // รัศมีตรวจจับผู้เล่น
 
     private Transform targetPlayer;
+    private NavMeshAgent agent;
+
+    private void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+        agent.speed = moveSpeed;
+        agent.stoppingDistance = stopDistance;
+        agent.updateRotation = true;
+        agent.autoBraking = true;
+    }
 
     private void Update()
     {
-        // ถ้ายังไม่มี target ให้ค้นหาใหม่
         if (targetPlayer == null)
         {
             FindPlayerInRange();
@@ -20,27 +31,30 @@ public class GhostChase : MonoBehaviour
 
         float distance = Vector3.Distance(transform.position, targetPlayer.position);
 
-        // ถ้าอยู่ใกล้เกิน stopDistance หยุด
-        if (distance <= stopDistance)
-            return;
-
-        // ถ้ายังอยู่ในระยะ ตรวจให้แน่ใจว่า player ยังอยู่ใน detectRadius
+        // ถ้า player ออกนอกระยะตรวจจับ — หยุดและค้นหาใหม่
         if (distance > detectRadius)
         {
-            targetPlayer = null; // ผู้เล่นออกนอกระยะ — ยกเลิก target
+            targetPlayer = null;
+            agent.ResetPath();
             return;
         }
 
-        // ผีหันหน้าและเคลื่อนที่เข้าหาผู้เล่น
-        Vector3 direction = (targetPlayer.position - transform.position).normalized;
-        direction.y = 0f; // ไม่ให้เงย/ก้ม
-        transform.position += direction * moveSpeed * Time.deltaTime;
-        transform.rotation = Quaternion.LookRotation(direction);
+        // ถ้าอยู่ใกล้เกิน stopDistance ให้หยุด
+        if (distance <= stopDistance)
+        {
+            agent.ResetPath();
+            return;
+        }
+
+        // ให้ NavMeshAgent ไล่ตามผู้เล่น
+        if (agent.enabled && targetPlayer != null)
+        {
+            agent.SetDestination(targetPlayer.position);
+        }
     }
 
     private void FindPlayerInRange()
     {
-        // หาผู้เล่นทั้งหมดในฉาก (อาจมีหลายตัว)
         GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
 
         float closestDist = Mathf.Infinity;

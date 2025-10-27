@@ -1,40 +1,41 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 
-
 [DisallowMultipleComponent]
+[RequireComponent(typeof(NavMeshAgent))]
 public class EnemyMove : MonoBehaviour
 {
     [Header("Waypoints (เรียงลำดับ)")]
     public Transform[] points;
 
     [Header("Target (ผู้เล่น)")]
-    public string playerTag = "Player"; // Tag ของผู้เล่น
-    private Transform target; // หาอัตโนมัติ
+    public string playerTag = "Player";
+    private Transform target;
     public float detectRange = 10f;
-    public float chaseDuration = 5f; // วินาที
+    public float chaseDuration = 5f;
     public LayerMask visionMask = ~0;
 
-    [Header("Move (Transform Mode)")]
-    public float speed = 3.5f;
-    public float arriveDistance = 0.2f;
+    [Header("Move Settings")]
+    public float arriveDistance = 0.5f;
 
-    [Header("Rotate")]
-    public bool faceMoveDirection = true;
-    public float rotateSpeedDeg = 540f;
-
-    private int _i;
+    private NavMeshAgent agent;
+    private int currentIndex;
     private bool chasingTarget;
     private float chaseTimer;
 
     void OnEnable()
     {
-        _i = 0;
+        agent = GetComponent<NavMeshAgent>();
+        currentIndex = 0;
 
-        // หา target จาก Tag
+        // หา Target ตาม Tag
         GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
         if (playerObj != null)
             target = playerObj.transform;
+
+        // เริ่มเดินไปจุดแรก
+        if (points.Length > 0)
+            agent.SetDestination(points[currentIndex].position);
     }
 
     void Update()
@@ -48,26 +49,29 @@ public class EnemyMove : MonoBehaviour
         if (chasingTarget)
         {
             chaseTimer -= Time.deltaTime;
+
             if (chaseTimer <= 0f)
             {
                 Destroy(gameObject);
                 return;
             }
+
+            // ไล่ผู้เล่น
+            if (target != null)
+                agent.SetDestination(target.position);
         }
-
-        Vector3 targetPos = (chasingTarget && target != null) ? target.position : (points.Length > 0 ? points[_i].position : transform.position);
-        Vector3 to = targetPos - transform.position;
-        Vector3 desiredDir = new Vector3(to.x, 0f, to.z).normalized;
-
-        if (faceMoveDirection && desiredDir.sqrMagnitude > 0.001f)
+        else
         {
-            Quaternion face = Quaternion.LookRotation(desiredDir, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, face, rotateSpeedDeg * Time.deltaTime);
+            Patrol();
         }
+    }
 
-        transform.position += desiredDir * speed * Time.deltaTime;
+    private void Patrol()
+    {
+        if (points.Length == 0) return;
 
-        if (!chasingTarget && points.Length > 0 && Vector3.Distance(transform.position.WithY(0f), points[_i].position.WithY(0f)) <= arriveDistance)
+        // เมื่อถึงจุด -> ไปจุดต่อไป
+        if (!agent.pathPending && agent.remainingDistance <= arriveDistance)
         {
             GoNext();
         }
@@ -90,11 +94,9 @@ public class EnemyMove : MonoBehaviour
 
     private void GoNext()
     {
-        _i = (_i + 1) % points.Length;
-    }
-}
+        if (points.Length == 0) return;
 
-static class VecExt
-{
-    public static Vector3 WithY(this Vector3 v, float y) => new Vector3(v.x, y, v.z);
+        currentIndex = (currentIndex + 1) % points.Length;
+        agent.SetDestination(points[currentIndex].position);
+    }
 }
