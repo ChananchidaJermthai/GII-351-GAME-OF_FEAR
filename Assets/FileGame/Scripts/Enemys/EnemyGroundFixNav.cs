@@ -39,7 +39,7 @@ public class EnemyGroundFixNav : MonoBehaviour
         if (_rb && disableRigidbodyGravity)
         {
             _rb.useGravity = false;
-            //_rb.isKinematic = true; // ให้ NavMeshAgent คุมการเคลื่อนที่
+            _rb.isKinematic = true; // ให้ NavMeshAgent คุมการเคลื่อนที่
         }
 
         // ให้ Agent แก้ path เองเวลาเลื่อนไปตามพื้น
