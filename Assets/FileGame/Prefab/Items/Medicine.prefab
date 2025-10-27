@@ -125,7 +125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64441cd54529fee4b9e07fd2e9f88c37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemPickup3D
-  itemId: Heal
+  itemId: Medicine
   amount: 1
   destroyOnPickup: 1
   pickupVfxPrefab: {fileID: 0}
