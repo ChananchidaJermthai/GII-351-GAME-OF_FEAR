@@ -78,6 +78,44 @@ public class PlayerController3D : MonoBehaviour
     [Range(0f, 1f)] public float walkVol = 0.8f, sprintVol = 1.0f, crouchVol = 0.55f;
     [Range(0f, 0.3f)] public float footstepFade = 0.08f;
 
+    // ===== Footstep by Surface =====
+    [Header("Footstep (Surface)")]
+    public bool useSurfaceFootsteps = true;
+
+    public enum SurfaceSource { Tag, PhysicMaterialName }
+    [Tooltip("เลือกจะอ่านจาก Tag ของ Collider หรือจากชื่อ PhysicMaterial")]
+    public SurfaceSource surfaceFrom = SurfaceSource.PhysicMaterialName;
+
+    [Tooltip("เลเยอร์ที่ใช้ตรวจพื้นสำหรับเสียง")]
+    public LayerMask surfaceRaycastMask = ~0;
+
+    [Tooltip("ระยะยิง Ray ลงพื้นเพื่อหา Collider พื้น")]
+    public float surfaceRaycastDistance = 1.2f;
+
+    [System.Serializable]
+    public class SurfaceSet
+    {
+        [Tooltip("ชื่อพื้นผิว: ถ้าใช้ Tag ให้ใส่ชื่อตรงกับ Tag; ถ้าใช้ PhysicMaterialName ให้ใส่ชื่อ material.name")]
+        public string id = "Default";
+
+        [Tooltip("คลิปฝีเท้าเมื่อเดินบนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ walkLoop ปกติ)")]
+        public AudioClip walk;
+
+        [Tooltip("คลิปฝีเท้าเมื่อสปรินต์บนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ sprintLoop ปกติ)")]
+        public AudioClip sprint;
+
+        [Tooltip("คลิปฝีเท้าเมื่อย่อง/ก้มบนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ crouchLoop ปกติ)")]
+        public AudioClip crouch;
+
+        [Range(0f, 1f)]
+        [Tooltip("ตัวคูณความดังเพิ่มเติมสำหรับพื้นผิวนี้")]
+        public float volumeScale = 1f;
+    }
+
+    [Tooltip("แม็ปพื้นผิว -> ชุดคลิปเสียง")]
+    public SurfaceSet[] surfaceSets;
+
+
     // ===== Ground / Controller =====
     [Header("Ground Fix / Controller")]
     public LayerMask groundMask = ~0;
@@ -384,15 +422,58 @@ public class PlayerController3D : MonoBehaviour
         transform.position += Vector3.up * up;
     }
 
+    string GetSurfaceId()
+    {
+        Vector3 origin = transform.position + Vector3.up * 0.1f;
+        if (Physics.Raycast(origin, Vector3.down, out var hit, surfaceRaycastDistance, surfaceRaycastMask, QueryTriggerInteraction.Ignore))
+        {
+            if (surfaceFrom == SurfaceSource.Tag)
+            {
+                return hit.collider.tag; // อ่านจาก Tag
+            }
+            else
+            {
+                var pm = hit.collider.sharedMaterial;
+                if (pm) return pm.name;   // อ่านจากชื่อ PhysicMaterial
+            }
+        }
+        return "Default"; // ไม่เจออะไรให้ตกไป Default
+    }
+
+    bool TryGetClipsForSurface(string id, out AudioClip w, out AudioClip s, out AudioClip c, out float vScale)
+    {
+        if (surfaceSets != null)
+        {
+            for (int i = 0; i < surfaceSets.Length; i++)
+            {
+                var set = surfaceSets[i];
+                if (!string.IsNullOrEmpty(set.id) && set.id == id)
+                {
+                    w = set.walk; s = set.sprint; c = set.crouch; vScale = set.volumeScale;
+                    return true;
+                }
+            }
+        }
+        w = s = c = null; vScale = 1f;
+        return false;
+    }
+
+
     void UpdateFootstep()
     {
         if (!footstepEnable || footstepSource == null) return;
-        Vector3 v = cc.velocity; v.y = 0f; float speed = v.magnitude;
+
+        Vector3 v = cc.velocity; v.y = 0f;
+        float speed = v.magnitude;
         bool moving = IsGroundedSphere() && speed >= minSpeedForSound;
 
         if (!moving)
         {
-            if (footstepFade <= 0f) { if (footstepSource.isPlaying) footstepSource.Stop(); footstepSource.volume = 0f; }
+            if (footstepFade <= 0f)
+            {
+                if (footstepSource.isPlaying) footstepSource.Stop();
+                footstepSource.volume = 0f;
+            }
             else
             {
                 if (footstepSource.volume <= 0.001f && footstepSource.isPlaying) footstepSource.Stop();
@@ -401,10 +482,29 @@ public class PlayerController3D : MonoBehaviour
             return;
         }
 
-        AudioClip want = isCrouching ? (crouchLoop ? crouchLoop : walkLoop)
-                        : (isSprinting ? (sprintLoop ? sprintLoop : walkLoop) : walkLoop);
-        float vol = isCrouching ? crouchVol : (isSprinting ? sprintVol : walkVol);
+        // เดิม: เลือกคลิป/วอลุ่มตามสถานะการเดิน-วิ่ง-ก้ม
+        AudioClip baseWant = isCrouching ? (crouchLoop ? crouchLoop : walkLoop)
+                            : (isSprinting ? (sprintLoop ? sprintLoop : walkLoop) : walkLoop);
+        float baseVol = isCrouching ? crouchVol : (isSprinting ? sprintVol : walkVol);
 
+        AudioClip want = baseWant;
+        float vol = baseVol;
+
+        // ใหม่: Override ตามพื้นผิว (ถ้าเปิดใช้งาน)
+        if (useSurfaceFootsteps)
+        {
+            string sid = GetSurfaceId();
+            if (TryGetClipsForSurface(sid, out var wClip, out var sClip, out var cClip, out var vScale))
+            {
+                // เลือกคลิปตามโหมด แต่ถ้าไม่ได้เซ็ตคลิปไว้ ให้ fallback ไปที่ baseWant
+                AudioClip overrideClip = isCrouching ? (cClip ? cClip : wClip)
+                                       : (isSprinting ? (sClip ? sClip : wClip) : wClip);
+                if (overrideClip) want = overrideClip;
+                vol *= vScale; // เพิ่ม/ลดความดังตามพื้นผิว
+            }
+        }
+
+        // เล่น/สลับคลิปตามปกติ (คง logic เดิม)
         if (footstepSource.clip != want)
         {
             footstepSource.clip = want;
@@ -420,6 +520,7 @@ public class PlayerController3D : MonoBehaviour
         else
             footstepSource.volume = vol;
     }
+
 
     public void TryUseConfiguredItem()
     {

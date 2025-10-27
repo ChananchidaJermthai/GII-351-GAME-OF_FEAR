@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - CallGhost
+  - Metal
   layers:
   - Default
   - TransparentFX
@@ -20,7 +21,7 @@ TagManager:
   - CircuitBreaker
   - Shalf
   - Interact
-  - 
+  - Ground
   - Roof
   - Neon
   - 
