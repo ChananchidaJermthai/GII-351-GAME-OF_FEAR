@@ -29,7 +29,11 @@ public class EnemyMove : MonoBehaviour
     private int currentIndex;
     private bool chasingTarget;
     private float chaseTimer;
-    private bool ghostSpawned; // ✅ ป้องกัน spawn ซ้ำ
+    private bool ghostSpawned; // ป้องกัน spawn ซ้ำ
+
+    [Header("Sanity")]
+    [Tooltip("ค่าที่จะลด Sanity ของผู้เล่นเมื่อไล่")]
+    public float removeSanity = 1.5f;
 
     void OnEnable()
     {
@@ -52,11 +56,11 @@ public class EnemyMove : MonoBehaviour
         if (questTrigger != null && questTrigger.isKeyExit && !ghostSpawned)
         {
             SpawnGhost();
-            ghostSpawned = true; // ป้องกันไม่ให้เกิดซ้ำ
+            ghostSpawned = true; // ป้องกันไม่ให้ spawn ซ้ำ
             chasingTarget = false; // ผีจะไม่ถูกลบ
-            return;
         }
 
+        // ตรวจสอบผู้เล่นและเริ่มไล่
         if (target != null && CanSeeTarget())
         {
             chasingTarget = true;
@@ -66,6 +70,9 @@ public class EnemyMove : MonoBehaviour
         if (chasingTarget)
         {
             chaseTimer -= Time.deltaTime;
+
+            // ✅ ลด Sanity ให้ผู้เล่น
+            ApplySanityToPlayer();
 
             if (chaseTimer <= 0f)
             {
@@ -81,6 +88,17 @@ public class EnemyMove : MonoBehaviour
         else
         {
             Patrol();
+        }
+    }
+
+    private void ApplySanityToPlayer()
+    {
+        if (target == null) return;
+
+        PlayerController3D ps = target.GetComponent<PlayerController3D>();
+        if (ps != null)
+        {
+            ps.AddSanity(removeSanity); // เรียกทีละค่า AddSanity
         }
     }
 

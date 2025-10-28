@@ -20,6 +20,8 @@ public class CallGhost : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
     }
 
+    public float removeSanity = 3.0f;
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
@@ -49,6 +51,17 @@ public class CallGhost : MonoBehaviour
                         if (audioSource != null)
                         {
                             audioSource.Play();
+
+                            // ✅ ลด Sanity ของผู้เล่น
+                            GameObject player = GameObject.FindGameObjectWithTag("Player"); // หรือ reference ของผู้เล่น
+                            if (player != null)
+                            {
+                                PlayerController3D pc = player.GetComponent<PlayerController3D>();
+                                if (pc != null)
+                                {
+                                    pc.AddSanity(removeSanity); // เรียกถูกต้อง
+                                }
+                            }
                         }
                         else
                         {
@@ -61,6 +74,7 @@ public class CallGhost : MonoBehaviour
 
                         Debug.Log($"👻 Ghost spawned near player at {closestPoint.name} (distance: {closestDistance:F1})");
                     }
+
                     else
                     {
                         Debug.Log($"ℹ️ Player not close enough to any spawn point (min distance: {closestDistance:F1})");

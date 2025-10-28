@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using UnityEngine;
 
 public class SoundGameBackground : MonoBehaviour
@@ -40,7 +41,9 @@ public class SoundGameBackground : MonoBehaviour
         }
     }
 
-    private void PlayRandomSound()
+
+    public float removeSanity = 2.5f;
+   private void PlayRandomSound()
     {
         if (backgroundSounds == null || backgroundSounds.Length == 0)
         {
@@ -54,8 +57,20 @@ public class SoundGameBackground : MonoBehaviour
         // เล่นแบบ OneShot (ไม่ขัดเสียงอื่น)
         audioSource.PlayOneShot(clip);
 
+        // ✅ เรียก AddSanity ของ PlayerController3D
+        GameObject player = GameObject.FindGameObjectWithTag("Player"); // หรือ reference ที่มีอยู่
+        if (player != null)
+        {
+            PlayerController3D pc = player.GetComponent<PlayerController3D>();
+            if (pc != null)
+            {
+                pc.AddSanity(removeSanity); // เรียกเมธอดของผู้เล่นถูกต้อง
+            }
+        }
+
         Debug.Log($"🎵 เล่นเสียงสุ่ม: {clip.name}");
     }
+
 
     private void ScheduleNextSound()
     {

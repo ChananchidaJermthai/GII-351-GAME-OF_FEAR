@@ -21,6 +21,7 @@ public class RandomAppearObject : MonoBehaviour
 
     [Tooltip("Audio Source ที่ใช้เล่นเสียง (ต้องใส่ใน Inspector)")]
     public AudioSource audioSource;
+    public float removeSanity = 4.0f;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -50,7 +51,19 @@ public class RandomAppearObject : MonoBehaviour
                 {
                     AudioClip selectedClip = randomSounds[Random.Range(0, randomSounds.Length)];
                     audioSource.PlayOneShot(selectedClip);
+
+                    // ✅ เรียก AddSanity ของ PlayerController3D
+                    GameObject player = GameObject.FindGameObjectWithTag("Player"); // หรือใช้ reference ของผู้เล่น
+                    if (player != null)
+                    {
+                        PlayerController3D pc = player.GetComponent<PlayerController3D>();
+                        if (pc != null)
+                        {
+                            pc.AddSanity(removeSanity); // เรียกถูกต้อง
+                        }
+                    }
                 }
+
 
                 Debug.Log("👻 Spawned object and played random sound!");
             }

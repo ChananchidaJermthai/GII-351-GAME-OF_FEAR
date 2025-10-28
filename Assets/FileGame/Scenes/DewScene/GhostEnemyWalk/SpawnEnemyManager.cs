@@ -70,6 +70,8 @@ public class SpawnEnemyManager : MonoBehaviour
         Destroy(enemyInstance, enemyLifetime);
     }
 
+    public float removeSanity = 3.0f;
+
     private void PlayRandomSpawnSound()
     {
         if (audioSource == null)
@@ -89,5 +91,17 @@ public class SpawnEnemyManager : MonoBehaviour
 
         // เล่นเสียงแบบ OneShot (ไม่ขัดกับเสียงอื่น)
         audioSource.PlayOneShot(randomClip);
+
+        // ✅ ลด Sanity ของผู้เล่น
+        GameObject player = GameObject.FindGameObjectWithTag("Player"); // หรือใช้ reference ของผู้เล่น
+        if (player != null)
+        {
+            PlayerController3D pc = player.GetComponent<PlayerController3D>();
+            if (pc != null)
+            {
+                pc.AddSanity(removeSanity); // เรียกเมธอดของผู้เล่นถูกต้อง
+            }
+        }
     }
+
 }

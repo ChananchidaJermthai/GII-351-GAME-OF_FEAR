@@ -52,6 +52,8 @@ public class GhostChase : MonoBehaviour
             agent.SetDestination(targetPlayer.position);
         }
     }
+    
+    public float removeSanity = 2.0f;
 
     private void FindPlayerInRange()
     {
@@ -73,7 +75,16 @@ public class GhostChase : MonoBehaviour
         if (closestPlayer != null)
         {
             targetPlayer = closestPlayer;
+
+            // เรียกเมธอด AddSanity ของ PlayerController
+            PlayerController3D pc = targetPlayer.GetComponent<PlayerController3D>();
+            if (pc != null)
+            {
+                pc.AddSanity(removeSanity); // เรียกถูกต้อง
+            }
+
             Debug.Log($"👻 Ghost detected player: {targetPlayer.name} (distance: {closestDist:F1})");
         }
+
     }
 }
