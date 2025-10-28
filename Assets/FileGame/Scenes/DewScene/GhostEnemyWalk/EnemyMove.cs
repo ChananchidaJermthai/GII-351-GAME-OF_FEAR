@@ -18,10 +18,18 @@ public class EnemyMove : MonoBehaviour
     [Header("Move Settings")]
     public float arriveDistance = 0.5f;
 
+    [Header("Spawn Control")]
+    [Tooltip("อ้างถึง ShowQuestTrigger ที่ใช้ตรวจ isKeyExit")]
+    public ShowQuestTrigger questTrigger;
+
+    [Tooltip("Prefab ของผีที่จะ Spawn เมื่อ isKeyExit = true")]
+    public GameObject ghostPrefab;
+
     private NavMeshAgent agent;
     private int currentIndex;
     private bool chasingTarget;
     private float chaseTimer;
+    private bool ghostSpawned; // ✅ ป้องกัน spawn ซ้ำ
 
     void OnEnable()
     {
@@ -40,6 +48,15 @@ public class EnemyMove : MonoBehaviour
 
     void Update()
     {
+        // ✅ ถ้า questTrigger มีอยู่ และ isKeyExit เป็น true -> Spawn ผี 1 ครั้ง
+        if (questTrigger != null && questTrigger.isKeyExit && !ghostSpawned)
+        {
+            SpawnGhost();
+            ghostSpawned = true; // ป้องกันไม่ให้เกิดซ้ำ
+            chasingTarget = false; // ผีจะไม่ถูกลบ
+            return;
+        }
+
         if (target != null && CanSeeTarget())
         {
             chasingTarget = true;
@@ -52,11 +69,12 @@ public class EnemyMove : MonoBehaviour
 
             if (chaseTimer <= 0f)
             {
-                Destroy(gameObject);
+                // ❌ ถ้ามีผี spawn แล้วจะไม่ลบตัวเอง
+                if (!ghostSpawned)
+                    Destroy(gameObject);
                 return;
             }
 
-            // ไล่ผู้เล่น
             if (target != null)
                 agent.SetDestination(target.position);
         }
@@ -70,7 +88,6 @@ public class EnemyMove : MonoBehaviour
     {
         if (points.Length == 0) return;
 
-        // เมื่อถึงจุด -> ไปจุดต่อไป
         if (!agent.pathPending && agent.remainingDistance <= arriveDistance)
         {
             GoNext();
@@ -98,5 +115,18 @@ public class EnemyMove : MonoBehaviour
 
         currentIndex = (currentIndex + 1) % points.Length;
         agent.SetDestination(points[currentIndex].position);
+    }
+
+    private void SpawnGhost()
+    {
+        if (ghostPrefab == null || target == null)
+        {
+            Debug.LogWarning("⚠️ Missing ghostPrefab or target for SpawnGhost.");
+            return;
+        }
+
+        Vector3 spawnPos = target.position + target.forward * 3f; // โผล่ตรงหน้าผู้เล่น
+        Instantiate(ghostPrefab, spawnPos, Quaternion.LookRotation(-target.forward));
+        Debug.Log("👻 Ghost spawned because isKeyExit = true!");
     }
 }
