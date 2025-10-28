@@ -219,9 +219,9 @@ MeshCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 5
-  m_Convex: 1
+  m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4300002, guid: 9e7790d8396287a4f984bc6caa033656, type: 3}
 --- !u!1 &6272694894194583800
@@ -250,7 +250,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6272694894194583800}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -16.150002, y: 2.6387, z: 38.296}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
@@ -312,6 +312,7 @@ GameObject:
   - component: {fileID: 8561781075837077915}
   - component: {fileID: 2151633246399901412}
   - component: {fileID: 2398929325182836132}
+  - component: {fileID: 4925607675141413285}
   m_Layer: 13
   m_Name: MirrorShelf_DoorL
   m_TagString: Untagged
@@ -433,8 +434,8 @@ MonoBehaviour:
     slideDistance: 0
     closedRot: {x: 0, y: 0, z: 0, w: 0}
     openRot: {x: 0, y: 0, z: 0, w: 0}
-    closedLocalPos: {x: 0, y: 0, z: 0}
-    openLocalPos: {x: 0, y: 0, z: 0}
+    closedPos: {x: 0, y: 0, z: 0}
+    openPos: {x: 0, y: 0, z: 0}
   - door: {fileID: 2619094254756844794}
     motion: 0
     axis: 1
@@ -443,18 +444,17 @@ MonoBehaviour:
     slideDistance: 0
     closedRot: {x: 0, y: 0, z: 0, w: 0}
     openRot: {x: 0, y: 0, z: 0, w: 0}
-    closedLocalPos: {x: 0, y: 0, z: 0}
-    openLocalPos: {x: 0, y: 0, z: 0}
-  openSpeed: 1
+    closedPos: {x: 0, y: 0, z: 0}
+    openPos: {x: 0, y: 0, z: 0}
   allowToggle: 0
   isLocked: 0
   requiredKeyId: Key_Shelf
   consumeKeyOnUse: 1
-  audioSource: {fileID: 0}
-  openSfx: {fileID: 0}
-  closeSfx: {fileID: 0}
+  audioSource: {fileID: 4925607675141413285}
+  openSfx: {fileID: 8300000, guid: 61892a7917f6f894489450a7213131f4, type: 3}
+  closeSfx: {fileID: 8300000, guid: 61892a7917f6f894489450a7213131f4, type: 3}
   lockedSfx: {fileID: 0}
-  sfxVolume: 1
+  sfxVolume: 0.159
   messageUI: {fileID: 0}
   onOpened:
     m_PersistentCalls:
@@ -467,6 +467,9 @@ MonoBehaviour:
       m_Calls: []
   debugLogs: 0
   autoOpenOnPlay: 0
+  interactCooldown: 0.35
+  blockWhileAnimating: 1
+  openSpeed: 1
 --- !u!114 &2151633246399901412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -495,3 +498,100 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShelfInteractable
   shelf: {fileID: 0}
   promptText: 'Press E Open '
+--- !u!82 &4925607675141413285
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8322219845438732888}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 4.733738
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

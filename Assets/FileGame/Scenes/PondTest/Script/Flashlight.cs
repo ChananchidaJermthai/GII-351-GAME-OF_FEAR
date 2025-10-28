@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem; // ใช้ New Input System เท่านั้น
+using TMPro;                   // << เพิ่มสำหรับข้อความ UI
 
 [DisallowMultipleComponent]
 public class Flashlight : MonoBehaviour
@@ -92,6 +93,20 @@ public class Flashlight : MonoBehaviour
     [Header("FarFill Smoothing")]
     [Min(0.1f)] public float ff_lerpSpeed = 10f;
 
+    // ===== UI Hint: Reload Message =====
+    [Header("UI Hint")]
+    [Tooltip("TMP_Text ที่จะแสดงข้อความ “กดปุ่ม R เพื่อ reload battery”")]
+    public TMP_Text reloadHintText;
+    [Tooltip("ข้อความเมื่อแบตหมด")]
+    public string reloadHintMessage = "กดปุ่ม R เพื่อ reload battery";
+    [Tooltip("เวลาที่แสดงข้อความเป็นวินาที")]
+    public float reloadHintDuration = 2f;
+
+    // ===== Anti-spam (R) =====
+    [Header("Reload Cooldown")]
+    [Tooltip("กันสแปมปุ่ม R: เวลาคูลดาวน์ต่อการกดรีโหลด (วินาที)")]
+    public float reloadCooldownSec = 0.6f;
+
     // ===== Runtime =====
     private PlayerInput playerInput;
     private InputAction aToggle, aFocus, aReload, aBrightUp, aBrightDown;
@@ -105,6 +120,11 @@ public class Flashlight : MonoBehaviour
     private float perlinT = 0f;
 
     private Light _ff; // FarFill light (ไม่สร้างเงา)
+
+    // state สำหรับ hint และคูลดาวน์
+    private bool wasBatteryEmpty = false;
+    private float hintHideAt = -1f;
+    private float nextReloadAllowedAt = 0f;
 
     void Reset()
     {
@@ -137,7 +157,7 @@ public class Flashlight : MonoBehaviour
 
             if (aToggle != null) aToggle.performed += _ => Toggle();
             if (aFocus != null) { aFocus.performed += _ => wantFocus = true; aFocus.canceled += _ => wantFocus = false; }
-            if (aReload != null) aReload.performed += _ => TryReload();
+            if (aReload != null) aReload.performed += _ => TryReload(); // คูลดาวน์จะเช็คข้างใน
             if (aBrightUp != null) aBrightUp.performed += _ => AdjustBrightness(+userBrightnessStep);
             if (aBrightDown != null) aBrightDown.performed += _ => AdjustBrightness(-userBrightnessStep);
 
@@ -161,12 +181,34 @@ public class Flashlight : MonoBehaviour
         // === สร้าง FarFill (ถ้าเปิดใช้) และตั้งค่าเริ่มต้น ===
         FF_Ensure(spot);
         if (_ff) FF_ApplyImmediate(spot);
+
+        // ปิด hint เริ่มต้น
+        SetReloadHint(false);
     }
 
     void Update()
     {
         HandleInputsFallback();
         SimulateBatteryAndFlicker(Time.deltaTime);
+
+        // แสดง Hint เมื่อแบตหมด (edge trigger)
+        if (batteryRemain <= 0f && !wasBatteryEmpty)
+        {
+            wasBatteryEmpty = true;
+            ShowReloadHint();
+        }
+        else if (batteryRemain > 0f)
+        {
+            wasBatteryEmpty = false;
+        }
+
+        // ซ่อน hint เมื่อครบเวลา
+        if (hintHideAt > 0f && Time.unscaledTime >= hintHideAt)
+        {
+            SetReloadHint(false);
+            hintHideAt = -1f;
+        }
+
         UpdateTargets();
         ApplyLight(Time.deltaTime);
 
@@ -181,7 +223,7 @@ public class Flashlight : MonoBehaviour
         if (kb == null) return;
 
         if (kb[toggleKey].wasPressedThisFrame) Toggle();
-        if (kb[reloadKey].wasPressedThisFrame) TryReload();
+        if (kb[reloadKey].wasPressedThisFrame) TryReload(); // คูลดาวน์จะเช็คข้างใน
         if (kb[brightUpKey].wasPressedThisFrame) AdjustBrightness(+userBrightnessStep);
         if (kb[brightDownKey].wasPressedThisFrame) AdjustBrightness(-userBrightnessStep);
         wantFocus = mouse != null && mouse.rightButton.isPressed;
@@ -199,16 +241,28 @@ public class Flashlight : MonoBehaviour
     // === จุดเดียวในการ Reload (รองรับสองโหมด) ===
     public bool TryReload()
     {
+        // กันสแปมปุ่ม R
+        if (Time.unscaledTime < nextReloadAllowedAt)
+            return false;
+
+        nextReloadAllowedAt = Time.unscaledTime + reloadCooldownSec;
+
         // ถ้าเต็มอยู่แล้ว ไม่ต้องใช้ของ
         if (batteryRemain >= batteryCapacity - 0.001f)
         {
             return false;
         }
 
+        bool result = false;
         if (useInventoryBatteries)
-            return ReloadFromInventory();
+            result = ReloadFromInventory();
         else
-            return ReloadFromInternalCells();
+            result = ReloadFromInternalCells();
+
+        // ถ้ารีโหลดสำเร็จ ปิด hint ทันที
+        if (result) SetReloadHint(false);
+
+        return result;
     }
 
     bool ReloadFromInventory()
@@ -232,6 +286,8 @@ public class Flashlight : MonoBehaviour
             {
                 // ไม่มีแบตในกระเป๋า
                 if (audioSrc && sfxSputter) audioSrc.PlayOneShot(sfxSputter);
+                // ถ้ายังไม่มีแบต ให้โชว์ hint สั้น ๆ ก็ได้ (ใช้ข้อความเดิม)
+                ShowReloadHint();
                 return false;
             }
         }
@@ -251,6 +307,7 @@ public class Flashlight : MonoBehaviour
         if (currentCells <= 0)
         {
             if (audioSrc && sfxSputter) audioSrc.PlayOneShot(sfxSputter);
+            ShowReloadHint();
             return false;
         }
 
@@ -317,6 +374,21 @@ public class Flashlight : MonoBehaviour
         spot.range = Mathf.Lerp(spot.range, desiredRange, lerp);
         spot.spotAngle = Mathf.Lerp(spot.spotAngle, desiredSpotAngle, focusTransition * dt);
         spot.enabled = (spot.intensity > 0.02f && isOn);
+    }
+
+    // ==================== Hint Helpers ====================
+    private void ShowReloadHint()
+    {
+        if (!reloadHintText) return;
+        reloadHintText.text = reloadHintMessage;
+        SetReloadHint(true);
+        hintHideAt = Time.unscaledTime + reloadHintDuration;
+    }
+
+    private void SetReloadHint(bool on)
+    {
+        if (!reloadHintText) return;
+        reloadHintText.gameObject.SetActive(on);
     }
 
     // ==================== FarFill Helpers ====================
