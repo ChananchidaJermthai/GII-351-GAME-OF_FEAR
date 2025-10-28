@@ -13,15 +13,24 @@ public class AmbientRoomAudioManager : MonoBehaviour
     [Tooltip("เสียง ambient พื้นฐานเมื่ออยู่นอกทุกห้อง")]
     public AudioClip defaultClip;
 
+    [Header("Follow / Output Mode")]
+    [Tooltip("ให้ตัว Manager ตามผู้เล่นเพื่อให้เสียง 3D ติดตัวผู้เล่น")]
+    public bool attachToPlayer = true;
+
+    [Tooltip("ใช้ AudioSource ที่อยู่บน Player แทนการสร้างใหม่")]
+    public bool usePlayersAudioSources = false;
+    [Tooltip("กำหนด AudioSource บน Player สำหรับ Default (ปล่อยว่างถ้าไม่ใช้)")]
+    public AudioSource defaultSourceFromPlayer;
+    [Tooltip("กำหนด AudioSource บน Player สำหรับ Room (ปล่อยว่างถ้าไม่ใช้)")]
+    public AudioSource roomSourceFromPlayer;
+
     [Header("Fade Settings")]
     [Range(0.01f, 5f)] public float fadeToRoomTime = 0.5f;
     [Range(0.01f, 5f)] public float fadeToDefaultTime = 0.5f;
 
-    //[Header("Room ID Source")]
     public enum IdSource { Tag, PhysicMaterialName }
     public IdSource idSource = IdSource.Tag;
 
-    //[Header("Room Mappings (id -> clip)")]
     [Serializable]
     public class RoomMap
     {
@@ -34,9 +43,9 @@ public class AmbientRoomAudioManager : MonoBehaviour
     // runtime audio
     AudioSource defaultSource, roomSource;
 
-    // กองห้องที่ผู้เล่นกำลังอยู่ (ลำดับตามเวลาเข้า) — Last = ห้องล่าสุดที่เข้า
+    // ห้องที่ผู้เล่นกำลังอยู่ (ลำดับเวลาเข้า) — ตัวท้ายสุดคือ “ห้องล่าสุด”
     readonly List<string> activeRoomStack = new List<string>();
-    // map โซน (Collider) -> roomId เพื่อรู้ว่าห้องไหนกำลัง active
+    // โซน (Collider) -> roomId
     readonly Dictionary<Collider, string> zoneIdByCollider = new Dictionary<Collider, string>();
 
     string CurrentRoomId => activeRoomStack.Count > 0 ? activeRoomStack[activeRoomStack.Count - 1] : null;
@@ -47,18 +56,45 @@ public class AmbientRoomAudioManager : MonoBehaviour
         if (Instance && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        defaultSource = gameObject.AddComponent<AudioSource>();
-        defaultSource.loop = true; defaultSource.playOnAwake = false;
-        defaultSource.spatialBlend = 1f; defaultSource.volume = 1f; defaultSource.clip = defaultClip;
+        if (attachToPlayer && Player)
+        {
+            transform.SetParent(Player, worldPositionStays: false);
+            transform.localPosition = Vector3.zero;
+        }
 
-        roomSource = gameObject.AddComponent<AudioSource>();
-        roomSource.loop = true; roomSource.playOnAwake = false;
-        roomSource.spatialBlend = 1f; roomSource.volume = 0f;
+        // Prepare audio sources (either from player or create new)
+        if (usePlayersAudioSources && defaultSourceFromPlayer && roomSourceFromPlayer)
+        {
+            defaultSource = defaultSourceFromPlayer;
+            roomSource = roomSourceFromPlayer;
+
+            // make sure basic flags are correct
+            defaultSource.loop = true; defaultSource.playOnAwake = false;
+            roomSource.loop = true; roomSource.playOnAwake = false;
+
+            // for ambience stuck on player’s head, you can use 2D:
+            // defaultSource.spatialBlend = 0f; roomSource.spatialBlend = 0f;
+        }
+        else
+        {
+            defaultSource = gameObject.GetComponent<AudioSource>();
+            if (!defaultSource) defaultSource = gameObject.AddComponent<AudioSource>();
+            defaultSource.loop = true; defaultSource.playOnAwake = false;
+            defaultSource.spatialBlend = 1f; // set 0 for 2D if you want headset-style ambient
+            defaultSource.volume = 1f; defaultSource.clip = defaultClip;
+
+            roomSource = gameObject.AddComponent<AudioSource>();
+            roomSource.loop = true; roomSource.playOnAwake = false;
+            roomSource.spatialBlend = defaultSource.spatialBlend;
+            roomSource.volume = 0f;
+        }
     }
 
     void Start()
     {
-        if (defaultSource.clip) defaultSource.Play();
+        // Always keep default rolling to guarantee sound “every time”
+        if (defaultClip && defaultSource.clip != defaultClip) defaultSource.clip = defaultClip;
+        if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
     }
 
     void Update()
@@ -67,19 +103,23 @@ public class AmbientRoomAudioManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(cur))
         {
-            // ไม่มีห้อง → เฟดกลับ default
+            // ไม่มีห้อง → เฟดกลับ default (default ไม่เคยหยุด)
             roomSource.volume = Mathf.MoveTowards(roomSource.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
             defaultSource.volume = 1f - roomSource.volume;
+
             if (roomSource.isPlaying && roomSource.volume <= 0.01f) roomSource.Stop();
         }
         else
         {
-            // มีห้อง → เฟดเข้า room
+            // มีห้อง → เฟดเข้า room (ไม่ restart clip ถ้าเป็นคลิปเดิม)
             roomSource.volume = Mathf.MoveTowards(roomSource.volume, roomTargetVol, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
             defaultSource.volume = 1f - roomSource.volume;
 
             if (roomSource.volume > 0.01f && roomSource.clip && !roomSource.isPlaying) roomSource.Play();
         }
+
+        // Safety: default always playing so there’s never silence
+        if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
     }
 
     // ====== เรียกจากโซน ======
@@ -90,20 +130,16 @@ public class AmbientRoomAudioManager : MonoBehaviour
         string id = GetRoomId(zoneGO, zoneCol);
         if (string.IsNullOrEmpty(id)) return;
 
-        // จดจำว่า collider นี้คือห้องอะไร
         zoneIdByCollider[zoneCol] = id;
 
-        // push ห้องใหม่ (ถ้ายังไม่มีใน stack)
         if (!activeRoomStack.Contains(id))
             activeRoomStack.Add(id);
         else
         {
-            // ถ้าอยู่แล้วใน stack ให้ย้ายไปไว้ท้าย (ถือว่า re-enter ล่าสุด)
             activeRoomStack.Remove(id);
             activeRoomStack.Add(id);
         }
 
-        // ตั้ง clip/vol ตามห้องล่าสุด
         ApplyRoom(CurrentRoomId);
     }
 
@@ -112,16 +148,14 @@ public class AmbientRoomAudioManager : MonoBehaviour
         if (zoneCol && zoneIdByCollider.TryGetValue(zoneCol, out var id))
         {
             zoneIdByCollider.Remove(zoneCol);
-            // ลบห้องนี้ออกจาก stack (ถ้ามีหลาย collider ชี้ห้องเดียวกัน จะต้องออกหมดก่อน)
-            bool stillAnyColliderForThatRoom = false;
+
+            bool stillAny = false;
             foreach (var kv in zoneIdByCollider)
             {
-                if (kv.Value == id) { stillAnyColliderForThatRoom = true; break; }
+                if (kv.Value == id) { stillAny = true; break; }
             }
-            if (!stillAnyColliderForThatRoom)
-                activeRoomStack.Remove(id);
+            if (!stillAny) activeRoomStack.Remove(id);
 
-            // ตั้ง clip/vol ตามห้องล่าสุดที่เหลืออยู่ (หรือกลับ default ถ้าไม่มี)
             ApplyRoom(CurrentRoomId);
         }
     }
@@ -137,24 +171,25 @@ public class AmbientRoomAudioManager : MonoBehaviour
 
         if (TryGetRoomClip(id, out var clip, out var vol))
         {
+            // เปลี่ยนคลิปเฉพาะเมื่อคลิปไม่เหมือนเดิม เพื่อลดการ restart
             if (roomSource.clip != clip)
             {
                 roomSource.clip = clip;
-                if (roomSource.volume > 0.01f) roomSource.Play();
+
+                // ถ้ากำลังเฟดเข้าอยู่แล้ว ให้เริ่มเล่นทันทีเพื่อความต่อเนื่อง
+                if (roomSource.volume > 0.01f && !roomSource.isPlaying) roomSource.Play();
             }
             roomTargetVol = vol;
         }
         else
         {
-            // ไม่มี mapping → ถือว่าไม่เข้าเงื่อนไขห้อง, กลับ default
-            roomTargetVol = 0f;
+            roomTargetVol = 0f; // ไม่มี mapping → ถือว่า default
         }
     }
 
     string GetRoomId(GameObject zone, Collider col)
     {
-        if (idSource == IdSource.Tag)
-            return zone ? zone.tag : null;
+        if (idSource == IdSource.Tag) return zone ? zone.tag : null;
         var pm = col ? col.sharedMaterial : null;
         return pm ? pm.name : null;
     }
