@@ -52,16 +52,15 @@ public class PlayerAimPickup : MonoBehaviour
         if (!playerCamera) return;
 
         var ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-        var hit = default(RaycastHit);
         var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
 
-        // ลองหาเป้าหมายตามลำดับที่ต้องการ
         ItemPickup3D itemTarget = null;
         RadioInteractable radioTarget = null;
         CircuitBreakerInteractable breakerTarget = null;
         ShelfInteractable shelfTarget = null;
+        DoorExitInteractable doorTarget = null;
 
-        if (Physics.Raycast(ray, out hit, maxPickupDistance, hitMask, qti))
+        if (Physics.Raycast(ray, out RaycastHit hit, maxPickupDistance, hitMask, qti))
         {
             var tr = hit.collider.transform;
 
@@ -69,26 +68,27 @@ public class PlayerAimPickup : MonoBehaviour
             if (itemTarget == null) radioTarget = tr.GetComponentInParent<RadioInteractable>();
             if (itemTarget == null && radioTarget == null) breakerTarget = tr.GetComponentInParent<CircuitBreakerInteractable>();
             if (itemTarget == null && radioTarget == null && breakerTarget == null) shelfTarget = tr.GetComponentInParent<ShelfInteractable>();
+            if (itemTarget == null && radioTarget == null && breakerTarget == null && shelfTarget == null)
+                doorTarget = tr.GetComponentInParent<DoorExitInteractable>();
         }
 
-        bool hasTarget = itemTarget || radioTarget || breakerTarget || shelfTarget;
+        bool hasTarget = itemTarget || radioTarget || breakerTarget || shelfTarget || doorTarget;
 
         if (promptRoot) promptRoot.SetActive(hasTarget);
 #if TMP_PRESENT || UNITY_2021_1_OR_NEWER
         if (promptText)
         {
-            if (itemTarget) promptText.text = $" Press E Get {itemTarget.itemId} x{itemTarget.amount} ";
+            if (itemTarget) promptText.text = $"Press E to pick up {itemTarget.itemId} x{itemTarget.amount}";
             else if (radioTarget) promptText.text = radioTarget.promptText;
             else if (breakerTarget) promptText.text = breakerTarget.promptText;
             else if (shelfTarget) promptText.text = shelfTarget.promptText;
+            else if (doorTarget) promptText.text = doorTarget.promptText; // e.g., "Hold [E] to open"
             else promptText.text = "";
         }
 #endif
 
         if (drawRay)
-        {
             Debug.DrawRay(ray.origin, ray.direction * maxPickupDistance, hasTarget ? Color.green : Color.red);
-        }
 
         if (hasTarget && PressedInteract())
         {
@@ -96,6 +96,7 @@ public class PlayerAimPickup : MonoBehaviour
             else if (radioTarget) radioTarget.TryInteract(gameObject);
             else if (breakerTarget) breakerTarget.TryInteract(gameObject);
             else if (shelfTarget) shelfTarget.TryInteract(gameObject);
+            else if (doorTarget) doorTarget.TryInteract(gameObject); // เริ่มโฮลด์ที่ DoorExit
         }
     }
 
