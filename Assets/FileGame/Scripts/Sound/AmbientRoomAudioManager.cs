@@ -7,185 +7,129 @@ public class AmbientRoomAudioManager : MonoBehaviour
     public static AmbientRoomAudioManager Instance { get; private set; }
 
     [Header("References")]
-    [Tooltip("ตัวละคร/ผู้เล่น (ไว้ตรวจว่าคนที่เข้าโซนคือผู้เล่นจริง)")]
     public Transform Player;
 
-    [Tooltip("AudioSource สำหรับเสียง default (เล่นตลอด)")]
-    public AudioSource defaultSource;
+    [Tooltip("เสียง ambient พื้นฐานที่จะเล่นเมื่ออยู่นอกห้อง")]
+    public AudioClip defaultClip;
 
-    [Tooltip("AudioSource สำหรับเสียงในห้อง (จะ cross-fade กับ default)")]
-    public AudioSource roomSource;
+    [Header("Fade Settings")]
+    [Range(0.01f, 5f)] public float fadeToRoomTime = 0.5f;
+    [Range(0.01f, 5f)] public float fadeToDefaultTime = 0.5f;
 
-    [Header("Fade")]
-    [Range(0.01f, 5f)] public float fadeToRoomTime = 0.3f;
-    [Range(0.01f, 5f)] public float fadeToDefaultTime = 0.3f;
-
-    //[Header("Room ID ")]
+    //[Header("Room ID Source")]
     public enum IdSource { Tag, PhysicMaterialName }
-    [Tooltip("อ่านชื่อห้องจาก Tag ของ GameObject โซน หรือจาก PhysicMaterial.name ของ Collider โซน")]
     public IdSource idSource = IdSource.Tag;
 
     //[Header("Room Mappings (id -> clip)")]
     [Serializable]
     public class RoomMap
     {
-        [Tooltip("id ห้อง เช่น bathroom, kitchen ฯลฯ (ต้องตรงกับ Tag หรือชื่อ PhysicMaterial)")]
         public string id = "bathroom";
         public AudioClip clip;
         [Range(0f, 1f)] public float volume = 1f;
     }
     public RoomMap[] roomClips;
 
-    // runtime
-    string _currentRoomId = null;   // ห้องที่กำลังเล่น
-    string _pendingRoomId = null;   // ห้องล่าสุดที่เข้าทับ
-    float _roomTargetVol = 0f;
+    AudioSource defaultSource, roomSource;
+    string currentRoomId;
+    float roomTargetVol;
 
     void Awake()
     {
         if (Instance && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        if (!defaultSource)
-        {
-            defaultSource = gameObject.AddComponent<AudioSource>();
-            defaultSource.loop = true; defaultSource.playOnAwake = false;
-            defaultSource.spatialBlend = 1f;
-            defaultSource.volume = 1f;
-        }
+        // Default source
+        defaultSource = gameObject.AddComponent<AudioSource>();
+        defaultSource.loop = true;
+        defaultSource.playOnAwake = false;
+        defaultSource.spatialBlend = 1f;
+        defaultSource.volume = 1f;
+        defaultSource.clip = defaultClip;
 
-        if (!roomSource)
-        {
-            roomSource = gameObject.AddComponent<AudioSource>();
-            roomSource.loop = true; roomSource.playOnAwake = false;
-            roomSource.spatialBlend = 1f;
-            roomSource.volume = 0f;
-        }
+        // Room source
+        roomSource = gameObject.AddComponent<AudioSource>();
+        roomSource.loop = true;
+        roomSource.playOnAwake = false;
+        roomSource.spatialBlend = 1f;
+        roomSource.volume = 0f;
     }
 
     void Start()
     {
-        // ให้ default เล่นตลอด (ถ้าตั้ง clip ไว้)
-        if (defaultSource.clip && !defaultSource.isPlaying)
-            defaultSource.Play();
+        if (defaultSource.clip) defaultSource.Play();
     }
 
     void Update()
     {
-        // cross-fade
-        float kRoom = Time.deltaTime / Mathf.Max(0.01f,
-                          (_pendingRoomId != null ? fadeToRoomTime : fadeToDefaultTime));
-
-        // room volume ไปหา target
-        roomSource.volume = Mathf.MoveTowards(roomSource.volume, _roomTargetVol, kRoom);
-
-        // default ผกผันกับ room (ให้รวมกันไม่พุ่ง)
-        defaultSource.volume = 1f - roomSource.volume;
-
-        // เริ่ม/หยุด roomSource ตามความดัง
-        if (_roomTargetVol > 0.001f)
+        // cross-fade volumes
+        if (string.IsNullOrEmpty(currentRoomId))
         {
-            if (!roomSource.isPlaying && roomSource.clip) roomSource.Play();
+            // fade to default
+            roomSource.volume = Mathf.MoveTowards(roomSource.volume, 0f, Time.deltaTime / fadeToDefaultTime);
+            defaultSource.volume = 1f - roomSource.volume;
         }
         else
         {
-            if (roomSource.isPlaying && roomSource.volume <= 0.001f) roomSource.Stop();
-        }
+            // fade to room
+            roomSource.volume = Mathf.MoveTowards(roomSource.volume, roomTargetVol, Time.deltaTime / fadeToRoomTime);
+            defaultSource.volume = 1f - roomSource.volume;
 
-        // เมื่อเฟดเข้าห้องเสร็จ ให้ถือว่า “อยู่ในห้อง” แล้ว
-        if (_pendingRoomId != null && Mathf.Abs(roomSource.volume - _roomTargetVol) < 0.01f)
-        {
-            _currentRoomId = _pendingRoomId;
-            _pendingRoomId = null;
-        }
-        // เมื่อเฟดกลับ default เสร็จ ให้เคลียร์ current
-        if (_pendingRoomId == null && _roomTargetVol <= 0.001f && roomSource.volume <= 0.001f)
-        {
-            _currentRoomId = null;
+            if (roomSource.volume > 0.01f && !roomSource.isPlaying) roomSource.Play();
+            if (roomSource.volume <= 0.01f && roomSource.isPlaying) roomSource.Stop();
         }
     }
 
-    /// เรียกเมื่อผู้เล่น “เข้า” โซนห้อง
-    public void EnterRoom(GameObject zoneGO, Collider zoneCollider)
+    // เรียกจาก AmbientRoomZone เมื่อผู้เล่นเข้า
+    public void EnterRoom(GameObject zone, Collider col)
     {
-        if (!IsPlayerValid()) return;
-
-        string id = GetRoomIdFromZone(zoneGO, zoneCollider);
-        if (string.IsNullOrEmpty(id)) return;
-
-        // หาแม็ป
+        string id = GetRoomId(zone, col);
         if (TryGetRoomClip(id, out var clip, out var vol))
         {
-            // เปลี่ยนคลิปถ้าจำเป็น
             if (roomSource.clip != clip)
             {
                 roomSource.clip = clip;
-                if (roomSource.volume > 0.001f) roomSource.Play();
+                roomSource.Play();
             }
-            _roomTargetVol = vol;
-            _pendingRoomId = id;
+            currentRoomId = id;
+            roomTargetVol = vol;
         }
+    }
+
+    // เรียกจาก AmbientRoomZone เมื่อผู้เล่นออก
+    public void ExitRoom(GameObject zone, Collider col)
+    {
+        string id = GetRoomId(zone, col);
+        if (id == currentRoomId)
+        {
+            currentRoomId = null;
+            roomTargetVol = 0f;
+        }
+    }
+
+    string GetRoomId(GameObject zone, Collider col)
+    {
+        if (idSource == IdSource.Tag)
+            return zone.tag;
         else
-        {
-            // ไม่พบ mapping → กลับ default
-            ExitAllRooms();
-        }
-    }
-
-    /// เรียกเมื่อผู้เล่น “ออก” โซนห้อง (ถ้าออกจากห้องที่กำลังเล่นอยู่)
-    public void ExitRoom(GameObject zoneGO, Collider zoneCollider)
-    {
-        if (!IsPlayerValid()) return;
-
-        string id = GetRoomIdFromZone(zoneGO, zoneCollider);
-        if (string.IsNullOrEmpty(id)) return;
-
-        // ถ้าโซนที่ออกคือห้องปัจจุบันหรือ pending → กลับ default
-        if (id == _currentRoomId || id == _pendingRoomId)
-        {
-            ExitAllRooms();
-        }
-    }
-
-    public void ExitAllRooms()
-    {
-        _pendingRoomId = null;
-        _roomTargetVol = 0f; // เฟดกลับ default
+            return col && col.sharedMaterial ? col.sharedMaterial.name : null;
     }
 
     bool TryGetRoomClip(string id, out AudioClip clip, out float vol)
     {
         if (roomClips != null)
         {
-            for (int i = 0; i < roomClips.Length; i++)
+            foreach (var rm in roomClips)
             {
-                if (roomClips[i] != null && roomClips[i].id == id)
+                if (rm != null && rm.id == id)
                 {
-                    clip = roomClips[i].clip;
-                    vol = roomClips[i].volume;
-                    return clip != null;
+                    clip = rm.clip;
+                    vol = rm.volume;
+                    return true;
                 }
             }
         }
         clip = null; vol = 0f;
         return false;
-    }
-
-    string GetRoomIdFromZone(GameObject zoneGO, Collider zoneCol)
-    {
-        if (idSource == IdSource.Tag)
-        {
-            return zoneGO.tag; // ใช้ Tag ของ GameObject โซนนั้น
-        }
-        else
-        {
-            var pm = zoneCol ? zoneCol.sharedMaterial : null;
-            return pm ? pm.name : null; // ใช้ชื่อ PhysicMaterial
-        }
-    }
-
-    bool IsPlayerValid()
-    {
-        return Player != null && defaultSource != null && roomSource != null;
     }
 }
