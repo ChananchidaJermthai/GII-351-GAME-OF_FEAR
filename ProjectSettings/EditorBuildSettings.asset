@@ -6,8 +6,11 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/FileGame/Scenes/LevelScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/FileGame/Scenes/Walk in Scene.unity
+    guid: 715c2e7737e80574daf249578935da77
+  - enabled: 1
+    path: Assets/FileGame/Scenes/GameScene.unity
+    guid: 693aef7d120749747b749f4f2452ba02
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 6548334f3816c50439fb3badf4584113, type: 3}
   m_UseUCBPForAssetBundles: 0

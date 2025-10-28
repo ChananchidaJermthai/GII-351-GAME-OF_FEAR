@@ -17,14 +17,13 @@ public class CamFaint : MonoBehaviour
     public float lookRotateSpeed = 10f;
 
     [Header("SFX - Footstep (loop while moving)")]
-    public AudioSource footstepSource;     // แนะนำให้เป็น AudioSource แยก
-    public AudioClip footstepLoop;       // คลิปลูปฝีเท้า (2D/ambience ก็ได้)
+    public AudioSource footstepSource;
+    public AudioClip footstepLoop;
     [Range(0f, 1f)] public float footstepVolume = 0.7f;
-    [Tooltip("ค่อย ๆ เฟดเข้า/ออกป้องกันคลิกเสียง")]
     [Range(0f, 0.3f)] public float footstepFade = 0.08f;
 
     [Header("SFX - On Hit (at last point)")]
-    public AudioSource sfxSource;          // ใช้เล่นเสียงโดนทุบ (OneShot)
+    public AudioSource sfxSource;
     public AudioClip hitSfx;
     public float delayAfterHit = 0.1f;
 
@@ -44,13 +43,19 @@ public class CamFaint : MonoBehaviour
     [Header("UI Overlay (auto)")]
     public Image blackOverlayImage;
 
+    [Header("Overlay Lifetime")]
+    [Tooltip("ถ้าเปิด จะคง Overlay ข้ามซีน (ส่วนใหญ่ไม่ต้องเปิด)")]
+    public bool keepOverlayAcrossScenes = false;
+    [Tooltip("ถ้า keepOverlayAcrossScenes=true ให้ลบ Overlay หลังโหลดซีนไหม")]
+    public bool destroyOverlayAfterLoad = true;
+
     // runtime
     Vector3 _basePos;
     Quaternion _baseRot;
     bool _sequenceRunning;
     Canvas _overlayCanvas;
-
-    float _footVolVel = 0f;  // smoothDamp vol
+    GameObject _overlayRoot;
+    float _footVolVel = 0f;
 
     void Start()
     {
@@ -59,28 +64,29 @@ public class CamFaint : MonoBehaviour
         if (playOnStart) PlaySequence();
     }
 
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
     void EnsureAudio()
     {
-        // Footstep source
-        if (!footstepSource)
-        {
-            footstepSource = gameObject.AddComponent<AudioSource>();
-        }
+        if (!footstepSource) footstepSource = gameObject.AddComponent<AudioSource>();
         footstepSource.playOnAwake = false;
         footstepSource.loop = true;
-        footstepSource.spatialBlend = 0f;           // 2D (ปรับเป็น 1f ถ้าอยาก 3D)
+        footstepSource.spatialBlend = 0f;
         footstepSource.volume = 0f;
-        if (footstepLoop && footstepSource.clip != footstepLoop)
-            footstepSource.clip = footstepLoop;
+        if (footstepLoop && footstepSource.clip != footstepLoop) footstepSource.clip = footstepLoop;
 
-        // Hit SFX source
-        if (!sfxSource)
-        {
-            sfxSource = gameObject.AddComponent<AudioSource>();
-        }
+        if (!sfxSource) sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
         sfxSource.loop = false;
-        sfxSource.spatialBlend = 0f;               // 2D
+        sfxSource.spatialBlend = 0f;
     }
 
     [ContextMenu("Play Sequence")]
@@ -99,9 +105,7 @@ public class CamFaint : MonoBehaviour
     {
         _sequenceRunning = true;
 
-        // เริ่มลูปฝีเท้า (ยังคง volume = 0 จะเฟดขึ้นเฉพาะตอนเคลื่อน)
-        if (footstepLoop && !footstepSource.isPlaying)
-            footstepSource.Play();
+        if (footstepLoop && !footstepSource.isPlaying) footstepSource.Play();
 
         for (int i = 0; i < waypoints.Length; i++)
         {
@@ -110,18 +114,15 @@ public class CamFaint : MonoBehaviour
 
             while (true)
             {
-                // ระยะ/ทิศทาง
                 Vector3 to = target.position - transform.position;
                 float dist = to.magnitude;
 
-                // มองทางเดิน (optional)
                 if (lookAtNextPoint && dist > 0.0001f)
                 {
                     var lookRot = Quaternion.LookRotation(to.normalized, Vector3.up);
                     transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * lookRotateSpeed);
                 }
 
-                // เฟดเสียงฝีเท้า: เคลื่อนที่อยู่ = เฟดเข้าตาม footstepVolume
                 float targetVol = dist > arriveThreshold ? footstepVolume : 0f;
                 if (footstepSource)
                 {
@@ -130,7 +131,6 @@ public class CamFaint : MonoBehaviour
                     else
                         footstepSource.volume = targetVol;
 
-                    // ถ้าลงถึง 0 และกำลังเล่นอยู่ ให้หยุดจริงเพื่อตัดภาระ (แต่จะสั่ง Play ใหม่อัตโนมัติขยับครั้งต่อไป)
                     if (footstepSource.volume <= 0.001f && footstepSource.isPlaying && targetVol <= 0f)
                         footstepSource.Stop();
                     if (footstepLoop && !footstepSource.isPlaying && targetVol > 0f)
@@ -140,7 +140,6 @@ public class CamFaint : MonoBehaviour
                     }
                 }
 
-                // เคลื่อนเข้าเป้าหมาย
                 if (dist <= arriveThreshold) break;
                 Vector3 step = to.normalized * moveSpeed * Time.deltaTime;
                 if (step.magnitude > dist) step = to;
@@ -150,7 +149,6 @@ public class CamFaint : MonoBehaviour
             }
         }
 
-        // ถึงจุดสุดท้ายแล้ว → ปิด/เฟดเสียงฝีเท้า
         if (footstepSource)
         {
             if (footstepFade > 0f)
@@ -169,14 +167,10 @@ public class CamFaint : MonoBehaviour
             footstepSource.volume = 0f;
         }
 
-        // เล่นเสียงโดนทุบ
         if (hitSfx && sfxSource) sfxSource.PlayOneShot(hitSfx);
         if (delayAfterHit > 0f) yield return new WaitForSeconds(delayAfterHit);
 
-        // เอฟเฟกต์หน้ามืด
         yield return StartCoroutine(Co_FaintEffect());
-
-        // ดำค้างและโหลดซีน
         yield return StartCoroutine(Co_BlackoutThenLoad());
     }
 
@@ -192,13 +186,11 @@ public class CamFaint : MonoBehaviour
         {
             t += Time.deltaTime;
 
-            // Flicker
             float phase = t * flickerFrequency * Mathf.PI * 2f;
             float a = Mathf.Abs(Mathf.Sin(phase));
             float alpha = Mathf.Lerp(0f, maxFlickerAlpha, a);
             SetOverlayAlpha(alpha);
 
-            // Shake (ค่อย ๆ ลดแรง)
             float nt = Mathf.Clamp01(t / shakeDuration);
             float falloff = 1f - nt;
             Vector3 randPos = new Vector3(
@@ -218,7 +210,6 @@ public class CamFaint : MonoBehaviour
             yield return null;
         }
 
-        // รีเซ็ต และเฟดเข้าสู่ดำสนิท
         transform.localPosition = _basePos;
         transform.localRotation = _baseRot;
 
@@ -238,6 +229,7 @@ public class CamFaint : MonoBehaviour
     {
         yield return new WaitForSeconds(Mathf.Max(0f, blackoutDuration));
 
+        // ถ้าไม่ต้องคง overlay ข้ามซีน → ปล่อยให้ถูกทำลายพร้อมซีน (ค่าเริ่มต้น)
         if (!string.IsNullOrEmpty(sceneNameToLoad))
             SceneManager.LoadScene(sceneNameToLoad);
         else if (sceneIndexToLoad >= 0)
@@ -251,23 +243,40 @@ public class CamFaint : MonoBehaviour
     {
         if (blackOverlayImage != null) { SetOverlayAlpha(0f); return; }
 
-        var canvasGO = new GameObject("FaintOverlayCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        var canvas = canvasGO.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        DontDestroyOnLoad(canvasGO);
+        _overlayRoot = new GameObject("FaintOverlayCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        _overlayCanvas = _overlayRoot.GetComponent<Canvas>();
+        _overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+        // **เปลี่ยนพฤติกรรมเริ่มต้น:** ไม่ DontDestroyOnLoad เพื่อให้ซีนใหม่ “ไม่มีจอดำค้าง”
+        if (keepOverlayAcrossScenes)
+            DontDestroyOnLoad(_overlayRoot);
 
         var imgGO = new GameObject("BlackOverlay", typeof(Image));
-        imgGO.transform.SetParent(canvasGO.transform, false);
+        imgGO.transform.SetParent(_overlayRoot.transform, false);
         blackOverlayImage = imgGO.GetComponent<Image>();
         blackOverlayImage.color = new Color(0f, 0f, 0f, 0f);
 
         var rt = imgGO.GetComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
 
         SetOverlayAlpha(0f);
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // เผื่อกรณี dev เปิด keepOverlayAcrossScenes เอาไว้:
+        if (keepOverlayAcrossScenes && destroyOverlayAfterLoad && _overlayRoot)
+        {
+            Destroy(_overlayRoot);
+            _overlayRoot = null;
+            blackOverlayImage = null;
+            _overlayCanvas = null;
+        }
+        else
+        {
+            // ไม่คง overlay ข้ามซีน → ไม่ต้องทำอะไร (ถูกทำลายไปแล้ว)
+        }
     }
 
     void SetOverlayAlpha(float a)
@@ -278,7 +287,6 @@ public class CamFaint : MonoBehaviour
         blackOverlayImage.color = c;
     }
 
-    // ===== Gizmos =====
     void OnDrawGizmos()
     {
         if (waypoints == null || waypoints.Length == 0) return;

@@ -23,7 +23,7 @@ RenderSettings:
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 0.5
+  m_AmbientIntensity: 0.39
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0, g: 0, b: 0, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: ee8ef6648b1458548aa69070c1a952f0, type: 2}
@@ -35,7 +35,7 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 0.284
+  m_ReflectionIntensity: 0.246
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
@@ -22499,7 +22499,7 @@ MonoBehaviour:
   spherecastRadius: 0.05
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 131059
   proximityIntensityCurve:
     serializedVersion: 2
     m_Curve:
@@ -43747,7 +43747,7 @@ Transform:
   m_GameObject: {fileID: 1327651539}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.66, y: 1, z: -44.26}
+  m_LocalPosition: {x: 0.66, y: 1.09, z: -36.08}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -43791,6 +43791,8 @@ MonoBehaviour:
   sceneNameToLoad: GameScene
   sceneIndexToLoad: -1
   blackOverlayImage: {fileID: 0}
+  keepOverlayAcrossScenes: 0
+  destroyOverlayAfterLoad: 1
 --- !u!114 &1327651544
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -44726,7 +44728,7 @@ Transform:
   m_GameObject: {fileID: 1459909772}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -24.61}
+  m_LocalPosition: {x: 0, y: 0, z: -19.82}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
