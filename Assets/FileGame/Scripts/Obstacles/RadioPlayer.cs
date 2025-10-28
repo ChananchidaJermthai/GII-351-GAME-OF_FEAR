@@ -115,9 +115,6 @@ public class RadioPlayer : MonoBehaviour
         if (audioSource && audioSource.isPlaying) audioSource.Stop();
         if (audioSource) audioSource.mute = false;
 
-        // จบ session อย่างสุภาพ (ไม่ดึงค่าคืน)
-        if (sanityTarget) sanityTarget.EndSession();
-
         _currentTape = null;
         onPlayStopped?.Invoke();
     }
@@ -142,15 +139,17 @@ public class RadioPlayer : MonoBehaviour
     }
 
     // ===== Core =====
+
     void StartTape(TapeConfig cfg, DurationMode mode, float customSeconds)
     {
         if (_playRoutine != null) StopTape();
 
-        // ต้องมีคลิป
+        // ต้องมีคลิป มิเช่นนั้นไม่เริ่ม และไม่หักของ
         if (!cfg.clip) { onNoItem?.Invoke("เทปนี้ไม่มี AudioClip"); return; }
+
         if (!playerInventory) { onNoItem?.Invoke("ไม่พบ InventoryLite ของผู้เล่น"); return; }
 
-        // หักไอเท็มเทปก่อนเริ่มเสมอ
+        // หักไอเท็ม "ก่อนเริ่มเล่น" เสมอ — ถ้าหักไม่ได้ ให้ยุติทันที
         if (!TryConsume(playerInventory, cfg.tapeKeyId, 1))
         {
             onNoItem?.Invoke($"ไม่มีเทป {cfg.tapeKeyId}");
@@ -165,57 +164,73 @@ public class RadioPlayer : MonoBehaviour
             if (!TryConsume(playerInventory, batteryKeyId, 1))
             { onNoItem?.Invoke($"ไม่มีแบตเตอรี่ ({batteryKeyId})"); return; }
             _batteryTimer = secondsPerBattery;
-            if (debugLogs) Debug.Log($"[RadioPlayer] Consumed 1x {batteryKeyId} (seconds={secondsPerBattery:F1})");
+            if (debugLogs) Debug.Log($"[RadioPlayer] Consumed 1x {batteryKeyId} (timer={_batteryTimer}s)");
         }
 
-        // เริ่ม Session สะสมผลสุทธิ
-        if (sanityTarget) sanityTarget.BeginSession();
+        if (cfg.effect == SanityEffectType.Random && randomizeEachPlay)
+            _randomSignThisPlay = Random.value < 0.5f ? -1 : +1;
 
-        // ตั้งค่าเสียง
+        _currentTape = cfg;
+        _storedVolume = audioSource.volume;
+
         audioSource.clip = cfg.clip;
+        audioSource.loop = false;
+        audioSource.mute = false;
         audioSource.Play();
 
-        if (randomizeEachPlay) _randomSignThisPlay = (Random.value < 0.5f) ? -1 : +1;
+        onPlayStartedDisplay?.Invoke(string.IsNullOrEmpty(cfg.displayName) ? cfg.tapeKeyId : cfg.displayName);
 
-        _playRoutine = StartCoroutine(Co_PlayTape(cfg, mode, customSeconds));
-        onPlayStartedDisplay?.Invoke(cfg.displayName);
+        _playRoutine = StartCoroutine(Co_PlayTape(cfg, mode, Mathf.Max(0f, customSeconds)));
     }
 
     IEnumerator Co_PlayTape(TapeConfig cfg, DurationMode mode, float customSeconds)
     {
         float elapsed = 0f;
-        float r = GetEffectiveRadius();
+        _wasInRange = false;
 
-        while (audioSource && audioSource.clip && audioSource.isPlaying)
+        while (true)
         {
-            // แบตหมด -> หยุด
+            bool shouldContinue =
+                (mode == DurationMode.ClipLength) ? (audioSource && audioSource.isPlaying)
+                                                  : (elapsed < customSeconds);
+            if (!shouldContinue) break;
+
+            // --- Battery tick ---
             if (useBattery)
             {
                 _batteryTimer -= Time.deltaTime;
-                if (_batteryTimer <= 0f) { audioSource.Stop(); break; }
+                if (_batteryTimer <= 0f)
+                {
+                    _batteryTimer += secondsPerBattery;
+                    if (!TryConsume(playerInventory, batteryKeyId, 1))
+                    { onNoItem?.Invoke($"แบตเตอรี่ ({batteryKeyId}) หมด"); break; }
+                    if (debugLogs) Debug.Log($"[RadioPlayer] Consumed 1x {batteryKeyId} (extend {secondsPerBattery}s)");
+                }
             }
 
-            // เช็คระยะ
+            // --- Range check ---
             bool inRangeNow = true;
             if (requireInRange && sanityTarget)
             {
+                float r = GetEffectiveRadius();
                 float d = Vector3.Distance(sanityTarget.transform.position, transform.position);
                 inRangeNow = _wasInRange ? (d <= r) : (d <= Mathf.Max(0f, r - rangeHysteresis));
             }
 
-            // ตัด/คืนเสียงที่ขอบเขต (ไม่กระทบ Sanity ที่เพิ่มไปแล้ว)
+            // Cut/restore audio at boundary
             if (muteOutsideRange && audioSource)
             {
                 if (inRangeNow && !_wasInRange) { audioSource.mute = false; audioSource.volume = _storedVolume; }
                 else if (!inRangeNow && _wasInRange) { _storedVolume = audioSource.volume; audioSource.mute = true; }
             }
+
             _wasInRange = inRangeNow;
 
-            // บวก Sanity เฉพาะตอนอยู่ในระยะ
-            if (inRangeNow && sanityTarget)
+            // --- Sanity apply (only in range) ---
+            if (inRangeNow)
             {
                 float perSec = Mathf.Max(0f, cfg.amountPerSecond);
-                if (perSec > 0f)
+                if (perSec > 0f && sanityTarget)
                 {
                     float sign = cfg.effect switch
                     {
@@ -224,23 +239,18 @@ public class RadioPlayer : MonoBehaviour
                         SanityEffectType.Random => _randomSignThisPlay,
                         _ => 0f
                     };
-                    // สำหรับ SanityApplierV2 (inputIsPerSecond = true)
-                    var applierV2 = sanityTarget as SanityApplierV2;
-                    if (applierV2) applierV2.AddPerSecond(sign * perSec);
-                    else sanityTarget.AddSanity(sign * perSec * Time.deltaTime); // รองรับของเดิม
-
+                    sanityTarget.AddSanity(sign * perSec * Time.deltaTime);
                 }
             }
 
-            // โหมดเวลาแบบกำหนดเอง
             elapsed += Time.deltaTime;
+
             if (mode == DurationMode.CustomSeconds && audioSource && audioSource.isPlaying && elapsed >= customSeconds)
                 audioSource.Stop();
 
             yield return null;
         }
 
-        // จบเทป: คืนสถานะเสียงเท่านั้น ไม่แตะค่า Sanity ที่สะสม
         _currentTape = null;
         if (audioSource)
         {
@@ -249,14 +259,80 @@ public class RadioPlayer : MonoBehaviour
             if (audioSource.isPlaying) audioSource.Stop();
         }
         _playRoutine = null;
-
-        // ปิด Session
-        if (sanityTarget) sanityTarget.EndSession();
-
         onPlayStopped?.Invoke();
     }
 
-    // ---- Helpers ----
+    // ---- Inventory helpers (robust consume) ----
+    bool TryConsume(InventoryLite inv, string key, int amount)
+    {
+        if (inv == null || string.IsNullOrEmpty(key) || amount <= 0) return false;
+
+        // 1) มี GetCount ไหม? เช็คก่อนว่าพอ
+        int count = SafeGetCount(inv, key);
+        if (count < amount)
+        {
+            if (debugLogs) Debug.LogWarning($"[RadioPlayer] Not enough '{key}' in inventory (have {count}, need {amount})", inv);
+            return false;
+        }
+
+        // 2) พยายามเรียก Consume/Remove/Add(-)
+        if (InvokeBool(inv, "Consume", key, amount)) return true;
+        if (InvokeBool(inv, "Remove", key, amount)) return true;
+
+        // Add(key, -amount)
+        if (InvokeVoid(inv, "Add", key, -amount))
+        {
+            // double-check
+            int after = SafeGetCount(inv, key);
+            if (after == count - amount) return true;
+        }
+
+        // Direct field/list modify? (ไม่ทำ เพื่อความปลอดภัย)
+        if (debugLogs) Debug.LogWarning($"[RadioPlayer] Consume failed for '{key}' (InventoryLite ไม่มี Consume/Remove/Add(-))", inv);
+        return false;
+    }
+
+    int SafeGetCount(InventoryLite inv, string key)
+    {
+        // ถ้ามีเมธอด GetCount(string) ให้ใช้
+        var mi = inv.GetType().GetMethod("GetCount", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
+        if (mi != null && mi.ReturnType == typeof(int))
+        {
+            return (int)mi.Invoke(inv, new object[] { key });
+        }
+        // เผื่อชื่ออื่น CountOf(string)
+        mi = inv.GetType().GetMethod("CountOf", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
+        if (mi != null && mi.ReturnType == typeof(int))
+        {
+            return (int)mi.Invoke(inv, new object[] { key });
+        }
+
+        // ไม่มีเมธอดนับ — ถือว่าไม่รู้จำนวน (ให้ผ่านไป แต่จะ fail ตอนหัก)
+        if (debugLogs) Debug.LogWarning("[RadioPlayer] InventoryLite ไม่มี GetCount/CountOf — แนะนำเพิ่มเมธอด GetCount(string)", inv);
+        return int.MaxValue; // ให้ผ่านเช็คแรก แล้วไปล้มตอนหักถ้าทำไม่ได้จริง
+    }
+
+    bool InvokeBool(object target, string method, string key, int amount)
+    {
+        var mi = target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
+        if (mi != null && mi.ReturnType == typeof(bool))
+        {
+            return (bool)mi.Invoke(target, new object[] { key, amount });
+        }
+        return false;
+    }
+
+    bool InvokeVoid(object target, string method, string key, int amount)
+    {
+        var mi = target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
+        if (mi != null && mi.ReturnType == typeof(void))
+        {
+            mi.Invoke(target, new object[] { key, amount });
+            return true;
+        }
+        return false;
+    }
+
     float GetEffectiveRadius()
     {
         if (useAudioSourceMaxDistance && audioSource) return audioSource.maxDistance;
@@ -278,61 +354,6 @@ public class RadioPlayer : MonoBehaviour
             audioSource.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
 
         if (disableDoppler) audioSource.dopplerLevel = 0f;
-    }
-
-    // Inventory helpers (คงเดิม)
-    bool TryConsume(InventoryLite inv, string key, int amount)
-    {
-        if (inv == null || string.IsNullOrEmpty(key) || amount <= 0) return false;
-
-        int count = SafeGetCount(inv, key);
-        if (count < amount)
-        {
-            if (debugLogs) Debug.LogWarning($"[RadioPlayer] Not enough '{key}' in inventory (have {count}, need {amount})", inv);
-            return false;
-        }
-
-        if (InvokeBool(inv, "Consume", key, amount)) return true;
-        if (InvokeBool(inv, "Remove", key, amount)) return true;
-
-        if (InvokeVoid(inv, "Add", key, -amount))
-        {
-            int after = SafeGetCount(inv, key);
-            if (after == count - amount) return true;
-        }
-
-        if (debugLogs) Debug.LogWarning($"[RadioPlayer] Consume failed for '{key}' (InventoryLite ไม่มี Consume/Remove/Add(-))", inv);
-        return false;
-    }
-
-    int SafeGetCount(InventoryLite inv, string key)
-    {
-        var mi = inv.GetType().GetMethod("GetCount", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
-        if (mi != null && mi.ReturnType == typeof(int))
-        {
-            return (int)mi.Invoke(inv, new object[] { key });
-        }
-        return 0;
-    }
-
-    bool InvokeBool(object target, string method, string key, int amount)
-    {
-        var mi = target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
-        if (mi != null && mi.ReturnType == typeof(bool))
-        {
-            return (bool)mi.Invoke(target, new object[] { key, amount });
-        }
-        return false;
-    }
-    bool InvokeVoid(object target, string method, string key, int amount)
-    {
-        var mi = target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
-        if (mi != null && mi.ReturnType == typeof(void))
-        {
-            mi.Invoke(target, new object[] { key, amount });
-            return true;
-        }
-        return false;
     }
 
     void OnDrawGizmosSelected()

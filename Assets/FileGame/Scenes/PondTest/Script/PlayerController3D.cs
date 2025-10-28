@@ -558,7 +558,7 @@ public class PlayerController3D : MonoBehaviour
     void UpdateSanityUI()
     {
         if (sanitySlider) sanitySlider.value = Mathf.Clamp01(sanity / sanityMax);
-        if (sanityText) sanityText.text = $"Sanity: {Mathf.RoundToInt(sanity)}/{Mathf.RoundToInt(sanityMax)}";
+        if (sanityText) sanityText.text = $" {Mathf.RoundToInt(sanity)}";
     }
     void UpdateStaminaUI()
     {

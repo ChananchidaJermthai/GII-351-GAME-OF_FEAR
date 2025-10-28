@@ -2,55 +2,40 @@
 
 /// <summary>
 /// รับ delta Sanity ต่อเฟรมจากแหล่งภายนอก (เช่น RadioPlayer) แล้วนำไปใช้กับผู้เล่นจริง
-/// - ไม่ล็อกชนิดสคริปต์ผู้เล่น: ใช้ได้กับ PlayerController3D/อื่น ๆ ผ่าน Reflection
-/// - รองรับทั้ง SetSanity(), เขียน field ตรง (_sanity/sanity และ sanityMax/maxSanity) และเรียก UpdateSanityUI() ถ้ามี
-/// - เพิ่ม BeginSession/EndSession เพื่อกันความรู้สึกว่า "เด้งกลับ" ตอนหยุดเล่นสื่อ
+/// - ไม่ล็อกกับวิธีเดียว: ใช้ได้ทั้ง SetSanity(), set field ตรง และเรียก UpdateSanityUI() ถ้ามี
+/// - รองรับชื่อ field หลายแบบ: _sanity / sanity  และ  sanityMax / maxSanity
 /// </summary>
 public class SanityApplier : MonoBehaviour
 {
     [Header("Refs")]
-    [Tooltip("ใส่ Component ของสคริปต์ผู้เล่นตัวจริง (เช่น PlayerController3D)")]
-    public Component player;   // เดิมเป็น PlayerControllerTest (แก้ให้ยืดหยุ่นขึ้น)
+    public PlayerController3D player;   // ลากสคริปต์ผู้เล่นเข้ามา
 
     [Header("Debug")]
-    public bool logWhenApplied = false;
+    public bool logWhenApplied = false;   // เปิดไว้จะเห็น Log ทุกครั้งที่มีการเขียนค่า
     public bool warnIfNoWritableTarget = true;
 
-    // บันทึกผลรวมที่เพิ่มระหว่าง session ปัจจุบัน (เพื่อดีบัก/ตรวจสอบ)
-    float _netAdded;
     bool _warnedOnce = false;
 
     void Reset()
     {
-        if (!player) player = GetComponentInParent<Component>();
+        if (!player) player = GetComponentInParent<PlayerController3D>();
     }
 
     void Awake()
     {
-        if (!player) player = GetComponentInParent<Component>();
+        if (!player) player = GetComponentInParent<PlayerController3D>();
     }
 
-    /// <summary>เริ่ม session ใหม่ (เรียกตอนเริ่มเล่นเพลง/เอฟเฟกต์ต่อเนื่อง)</summary>
-    public void BeginSession()
-    {
-        _netAdded = 0f;
-        if (logWhenApplied) Debug.Log("[SanityApplier] BeginSession()", this);
-    }
-
-    /// <summary>จบ session (ไม่ดึงค่าคืน ปล่อยผลรวมที่เพิ่มค้างไว้)</summary>
-    public void EndSession()
-    {
-        if (logWhenApplied) Debug.Log($"[SanityApplier] EndSession()  netAdded={_netAdded:F3}", this);
-    }
-
-    /// <summary>เพิ่ม/ลด Sanity ตาม amount (หน่วย/เฟรม)</summary>
+    /// <summary>
+    /// เพิ่ม/ลด Sanity ตาม amount (หน่วยเป็น "ต่อเฟรม" ที่คำนวณมาจากภายนอกแล้ว)
+    /// </summary>
     public void AddSanity(float amount)
     {
         if (!player)
         {
             if (warnIfNoWritableTarget && !_warnedOnce)
             {
-                Debug.LogWarning("[SanityApplier] ไม่มีอ้างอิง player — กรุณาลากสคริปต์ผู้เล่น (เช่น PlayerController3D) เข้ามาใน Inspector", this);
+                Debug.LogWarning("[SanityApplier] ไม่มีอ้างอิง PlayerControllerTest — กรุณาลาก player เข้ามาใน Inspector", this);
                 _warnedOnce = true;
             }
             return;
@@ -78,7 +63,7 @@ public class SanityApplier : MonoBehaviour
         var setMethod = t.GetMethod("SetSanity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
         var uiMethod = t.GetMethod("UpdateSanityUI", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
 
-        // ข้อมูลครบพอ: current + max → คำนวณ next แล้วเขียนแน่ ๆ
+        // กรณีข้อมูลครบพอ: current + max → คำนวน next แล้วเขียนให้สำเร็จแน่ ๆ
         if (currentOpt.HasValue && maxOpt.HasValue)
         {
             float next = Mathf.Clamp(currentOpt.Value + amount, 0f, maxOpt.Value);
@@ -87,35 +72,36 @@ public class SanityApplier : MonoBehaviour
             {
                 setMethod.Invoke(player, new object[] { next });
                 if (logWhenApplied) Debug.Log($"[SanityApplier] SetSanity({next:F2}) via method", player);
-            }
-            else
-            {
-                sanityField.SetValue(player, next);
-                if (uiMethod != null) uiMethod.Invoke(player, null);
-                if (logWhenApplied) Debug.Log($"[SanityApplier] sanityField = {next:F2} (direct write) + UpdateSanityUI()", player);
+                return;
             }
 
-            _netAdded += amount;
+            // ไม่มี SetSanity → เขียน field ตรง แล้วเรียกอัปเดต UI ถ้ามี
+            sanityField.SetValue(player, next);
+            if (uiMethod != null) uiMethod.Invoke(player, null);
+            if (logWhenApplied) Debug.Log($"[SanityApplier] sanityField = {next:F2} (direct write) + UpdateSanityUI()", player);
             return;
         }
 
-        // มี SetSanity แต่หา current/max ไม่ได้ → ใช้ค่าประมาณ
+        // ถ้ามี SetSanity แต่หา current/max ไม่ได้: ลองเรียกด้วย "ค่าประมาณ"
         if (setMethod != null)
         {
+            // ถ้าไม่มี current -> ถือว่า 0, ถ้าไม่มี max -> ใช้ 100 เป็นดีฟอลต์
             float cur = currentOpt ?? 0f;
             float max = maxOpt ?? 100f;
             float next = Mathf.Clamp(cur + amount, 0f, max);
             setMethod.Invoke(player, new object[] { next });
             if (logWhenApplied) Debug.Log($"[SanityApplier] SetSanity({next:F2}) (fallback, guessed bounds)", player);
-            _netAdded += amount;
             return;
         }
 
-        // สุดท้าย: ไม่มีทั้ง field และ method ให้เขียน
+        // มาทางสุดท้าย: ไม่มี method และอ่าน field ไม่ได้ → แจ้งเตือน
         if (warnIfNoWritableTarget && !_warnedOnce)
         {
-            Debug.LogWarning("[SanityApplier] ไม่พบทั้ง field (sanity/_sanity + sanityMax/maxSanity) และเมธอด SetSanity(.)\n" +
-                             "ทางแก้: เพิ่ม field หรือเมธอดดังกล่าวในสคริปต์ผู้เล่น หรือผูกเมธอดสาธารณะ SetSanity(float)", player);
+            Debug.LogWarning("[SanityApplier] ไม่พบทั้ง field (sanity/_sanity + sanityMax/maxSanity) และเมธอด SetSanity(..)\n" +
+                             "ทางแก้ที่แนะนำอย่างน้อย 1 อย่าง:\n" +
+                             "  • เพิ่ม field float _sanity และ float sanityMax ใน PlayerControllerTest\n" +
+                             "  • หรือเพิ่ม public void SetSanity(float v) เพื่อให้ SanityApplier เรียกใช้\n" +
+                             "  • และถ้ามี UI ให้เพิ่มเมธอด UpdateSanityUI()", player);
             _warnedOnce = true;
         }
     }
