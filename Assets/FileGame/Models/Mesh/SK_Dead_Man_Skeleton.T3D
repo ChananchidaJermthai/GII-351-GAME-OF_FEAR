@@ -1,0 +1,9 @@
+Begin Object Class=/Script/Engine.Skeleton Name="SK_Dead_Man_Skeleton" ExportPath="/Script/Engine.Skeleton'/Game/Horror_Props/Mesh/SK_Dead_Man_Skeleton.SK_Dead_Man_Skeleton'"
+   Begin Object Class=/Script/Engine.AnimCurveMetaData Name="AnimCurveMetaData_0" ExportPath="/Script/Engine.AnimCurveMetaData'/Game/Horror_Props/Mesh/SK_Dead_Man_Skeleton.SK_Dead_Man_Skeleton:AnimCurveMetaData_0'"
+   End Object
+   Begin Object Name="AnimCurveMetaData_0" ExportPath="/Script/Engine.AnimCurveMetaData'/Game/Horror_Props/Mesh/SK_Dead_Man_Skeleton.SK_Dead_Man_Skeleton:AnimCurveMetaData_0'"
+   End Object
+   BoneTree(5)=()
+   PreviewSkeletalMesh="/Game/Horror_Props/Mesh/SK_Dead_Man.SK_Dead_Man"
+   AssetUserData(0)="/Script/Engine.AnimCurveMetaData'AnimCurveMetaData_0'"
+End Object

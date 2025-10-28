@@ -1,0 +1,9 @@
+Begin Object Class=/Script/Engine.Skeleton Name="SK_Corpse_Skeleton" ExportPath="/Script/Engine.Skeleton'/Game/Horror_Props/Mesh/SK_Corpse_Skeleton.SK_Corpse_Skeleton'"
+   Begin Object Class=/Script/Engine.AnimCurveMetaData Name="AnimCurveMetaData_0" ExportPath="/Script/Engine.AnimCurveMetaData'/Game/Horror_Props/Mesh/SK_Corpse_Skeleton.SK_Corpse_Skeleton:AnimCurveMetaData_0'"
+   End Object
+   Begin Object Name="AnimCurveMetaData_0" ExportPath="/Script/Engine.AnimCurveMetaData'/Game/Horror_Props/Mesh/SK_Corpse_Skeleton.SK_Corpse_Skeleton:AnimCurveMetaData_0'"
+   End Object
+   BoneTree(7)=()
+   PreviewSkeletalMesh="/Game/Horror_Props/Mesh/SK_Corpse.SK_Corpse"
+   AssetUserData(0)="/Script/Engine.AnimCurveMetaData'AnimCurveMetaData_0'"
+End Object

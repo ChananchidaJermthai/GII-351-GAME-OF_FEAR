@@ -1,0 +1,33 @@
+Begin Object Class=/Script/Engine.PhysicsAsset Name="SK_Corpse_PhysicsAsset" ExportPath="/Script/Engine.PhysicsAsset'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset'"
+   Begin Object Class=/Script/Engine.SkeletalBodySetup Name="SkeletalBodySetup_1" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SkeletalBodySetup_1'"
+   End Object
+   Begin Object Class=/Script/Engine.SkeletalBodySetup Name="SkeletalBodySetup_0" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SkeletalBodySetup_0'"
+   End Object
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Script/Engine.PhysicsConstraintTemplate Name="PhysicsConstraintTemplate_0" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:PhysicsConstraintTemplate_0'"
+   End Object
+   Begin Object Name="SkeletalBodySetup_1" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SkeletalBodySetup_1'"
+      AggGeom=(SphylElems=((Center=(X=10.388888,Y=-0.577024,Z=0.106096),Rotation=(Pitch=0.000000,Yaw=-37.684757,Roll=-88.149063),Radius=11.343143,Length=14.110228)))
+      BoneName="Character001Hub001Bone001"
+      CollisionTraceFlag=CTF_UseSimpleAsComplex
+   End Object
+   Begin Object Name="SkeletalBodySetup_0" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SkeletalBodySetup_0'"
+      AggGeom=(SphylElems=((Center=(X=-44.584419,Y=32.141968,Z=-0.564568),Rotation=(Pitch=0.000007,Yaw=-90.986908,Roll=-89.388474),Radius=48.216625,Length=128.199722)))
+      BoneName="Character001Hub001"
+      CollisionTraceFlag=CTF_UseSimpleAsComplex
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="PhysicsConstraintTemplate_0" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Corpse_PhysicsAsset.SK_Corpse_PhysicsAsset:PhysicsConstraintTemplate_0'"
+      DefaultInstance=(JointName="Character001Hub001Bone001",ConstraintBone1="Character001Hub001Bone001",ConstraintBone2="Character001Hub001",Pos2=(X=16.119640,Y=1.436841,Z=0.000001),PriAxis2=(X=1.000000,Y=-0.000000,Z=0.000000),SecAxis2=(X=0.000000,Y=1.000000,Z=-0.000000),ProfileInstance=(ConeLimit=(Swing1Motion=ACM_Limited,Swing2Motion=ACM_Limited),TwistLimit=(TwistMotion=ACM_Limited)))
+   End Object
+   PreviewSkeletalMesh="/Game/Horror_Props/Mesh/SK_Corpse.SK_Corpse"
+   BoundsBodies(0)=0
+   BoundsBodies(1)=1
+   SkeletalBodySetups(0)="/Script/Engine.SkeletalBodySetup'SkeletalBodySetup_0'"
+   SkeletalBodySetups(1)="/Script/Engine.SkeletalBodySetup'SkeletalBodySetup_1'"
+   ConstraintSetup(0)="/Script/Engine.PhysicsConstraintTemplate'PhysicsConstraintTemplate_0'"
+   SolverSettings=(CullDistance=1.000000,bUseLinearJointSolver=False)
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+End Object

@@ -453,7 +453,7 @@ MonoBehaviour:
   audioSource: {fileID: 4925607675141413285}
   openSfx: {fileID: 8300000, guid: 61892a7917f6f894489450a7213131f4, type: 3}
   closeSfx: {fileID: 8300000, guid: 61892a7917f6f894489450a7213131f4, type: 3}
-  lockedSfx: {fileID: 0}
+  lockedSfx: {fileID: 8300000, guid: 81df3f75cc709a746b8b84262caba9c8, type: 3}
   sfxVolume: 0.159
   messageUI: {fileID: 0}
   onOpened:
