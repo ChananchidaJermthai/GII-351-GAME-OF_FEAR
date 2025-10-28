@@ -12,6 +12,14 @@ public class CallGhost : MonoBehaviour
     [SerializeField] private Transform[] spawnPoints; // จุดเกิดของผี
     [SerializeField] private float triggerDistance = 10f; // ระยะที่ต้องอยู่ใกล้ที่สุดเพื่อให้ผีเกิด
 
+    private AudioSource audioSource; // เก็บ AudioSource ของ GameObject นี้
+
+    private void Awake()
+    {
+        // ดึง AudioSource จาก GameObject ที่ใส่สคริปต์นี้
+        audioSource = GetComponent<AudioSource>();
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
@@ -20,10 +28,8 @@ public class CallGhost : MonoBehaviour
 
             if (percent <= percentJumpScare)
             {
-                // ตรวจว่ามีจุด spawn หรือไม่
                 if (spawnPoints.Length > 0 && ghostPrefab != null && player != null)
                 {
-                    // หาจุด spawn ที่อยู่ใกล้ผู้เล่นที่สุด
                     Transform closestPoint = null;
                     float closestDistance = Mathf.Infinity;
 
@@ -37,9 +43,19 @@ public class CallGhost : MonoBehaviour
                         }
                     }
 
-                    // ถ้าอยู่ในระยะที่กำหนด ให้ spawn ผีที่จุดใกล้สุด
                     if (closestPoint != null && closestDistance <= triggerDistance)
                     {
+                        // ✅ เล่นเสียงก่อนเกิดผี
+                        if (audioSource != null)
+                        {
+                            audioSource.Play();
+                        }
+                        else
+                        {
+                            Debug.LogWarning("⚠️ ไม่มี AudioSource อยู่ใน GameObject นี้!");
+                        }
+
+                        // 👻 จากนั้นค่อย Spawn ผี
                         GameObject ghost = Instantiate(ghostPrefab, closestPoint.position, closestPoint.rotation);
                         Destroy(ghost, ghostLifetime);
 
