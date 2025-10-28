@@ -34,6 +34,10 @@ public class ShowQuestTrigger : MonoBehaviour
     [Tooltip("If not destroying self, at least disable the collider")]
     public bool disableColliderOnSuccess = false;
 
+    [Header("Status")]
+    [Tooltip("True ถ้าผู้เล่นมีไอเท็มที่ต้องการครบ")]
+    public bool isKeyExit = false;
+
     private bool _done;
     private Collider _col;
 
@@ -65,12 +69,21 @@ public class ShowQuestTrigger : MonoBehaviour
         if (string.IsNullOrEmpty(requiredItemId) || requiredCount <= 0) return;
 
         int have = inventory.GetCount(requiredItemId);
-        if (have < requiredCount) return; // Not enough items -> do nothing
+
+        // ✅ ถ้ามีไอเท็มครบ ให้ตั้งค่า isKeyExit = true
+        if (have >= requiredCount)
+        {
+            isKeyExit = true;
+        }
+        else
+        {
+            isKeyExit = false;
+            return; // ยังไม่ครบ -> หยุดที่นี่
+        }
 
         // Optionally consume the items
         if (consumeOnSuccess)
         {
-            // Try consume; if cannot, abort
             bool ok = inventory.Consume(requiredItemId, requiredCount);
             if (!ok) return;
         }
@@ -83,7 +96,7 @@ public class ShowQuestTrigger : MonoBehaviour
 
         _done = true;
 
-        // Cleanup trigger (as requested)
+        // Cleanup trigger
         if (destroySelfOnSuccess)
         {
             Destroy(gameObject);
