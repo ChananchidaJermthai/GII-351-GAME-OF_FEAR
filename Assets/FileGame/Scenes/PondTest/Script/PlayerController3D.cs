@@ -2,7 +2,7 @@
 using UnityEngine.InputSystem;
 using TMPro;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement; // <<< เพิ่ม
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(CharacterController))]
 [DisallowMultipleComponent]
@@ -63,13 +63,12 @@ public class PlayerController3D : MonoBehaviour
     public Slider sanitySlider;
     public TMP_Text sanityText;
 
-    // --- NEW: Game Over เมื่อ Sanity เต็ม ---
+    // --- Game Over เมื่อ Sanity เต็ม ---
     [Header("Game Over on Sanity Full")]
-    public GameObject gameOverPanel;          // ใส่ Panel GameOver (จะถูก SetActive(true) ตอนจบ)
-    public float gameOverShowSeconds = 4f;    // เวลาที่โชว์ panel ก่อนโหลดซีน
-    public string gameOverSceneName = "";     // ระบุชื่อซีนปลายทาง (เว้นว่าง = รีโหลดซีนเดิม)
-    public int gameOverSceneIndex = -1;       // หรือใช้ buildIndex (ถ้า >=0)
-    // ----------------------------------------
+    public GameObject gameOverPanel;
+    public float gameOverShowSeconds = 4f;
+    public string gameOverSceneName = "";
+    public int gameOverSceneIndex = -1;
 
     // ===== Use Item =====
     [Header("Use Item Settings")]
@@ -92,32 +91,19 @@ public class PlayerController3D : MonoBehaviour
     public bool useSurfaceFootsteps = true;
 
     public enum SurfaceSource { Tag, PhysicMaterialName }
-    [Tooltip("เลือกจะอ่านจาก Tag ของ Collider หรือจากชื่อ PhysicMaterial")]
     public SurfaceSource surfaceFrom = SurfaceSource.PhysicMaterialName;
-
-    [Tooltip("เลเยอร์ที่ใช้ตรวจพื้นสำหรับเสียง")]
     public LayerMask surfaceRaycastMask = ~0;
-
-    [Tooltip("ระยะยิง Ray ลงพื้นเพื่อหา Collider พื้น")]
     public float surfaceRaycastDistance = 1.2f;
 
     [System.Serializable]
     public class SurfaceSet
     {
-        [Tooltip("ชื่อพื้นผิว: ถ้าใช้ Tag ให้ใส่ชื่อตรงกับ Tag; ถ้าใช้ PhysicMaterialName ให้ใส่ชื่อ material.name")]
         public string id = "Default";
-        [Tooltip("คลิปฝีเท้าเมื่อเดินบนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ walkLoop ปกติ)")]
         public AudioClip walk;
-        [Tooltip("คลิปฝีเท้าเมื่อสปรินต์บนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ sprintLoop ปกติ)")]
         public AudioClip sprint;
-        [Tooltip("คลิปฝีเท้าเมื่อย่อง/ก้มบนพื้นผิวนี้ (ไม่ตั้ง = fallback ไปใช้ crouchLoop ปกติ)")]
         public AudioClip crouch;
-        [Range(0f, 1f)]
-        [Tooltip("ตัวคูณความดังเพิ่มเติมสำหรับพื้นผิวนี้")]
-        public float volumeScale = 1f;
+        [Range(0f, 1f)] public float volumeScale = 1f;
     }
-
-    [Tooltip("แม็ปพื้นผิว -> ชุดคลิปเสียง")]
     public SurfaceSet[] surfaceSets;
 
     // ===== Ground / Controller =====
@@ -126,8 +112,6 @@ public class PlayerController3D : MonoBehaviour
     public bool liftFromGroundOnStart = true;
     public float liftClearance = 0.05f;
     public float groundProbeExtra = 0.1f;
-
-    [Tooltip("เคารพค่า CharacterController จาก Inspector (ไม่เขียนทับใน Awake)")]
     public bool respectControllerFromInspector = true;
 
     // ===== Runtime =====
@@ -144,7 +128,7 @@ public class PlayerController3D : MonoBehaviour
     float capsuleBottomLocalY;
     Vector3 camLocalPos0;
 
-    // ---- external look override / follow target ----
+    // external look
     float extYaw, extPitch, extBlendT, extBlendDur, extHoldT;
     bool lookOverride;
     Transform followTarget;
@@ -155,7 +139,6 @@ public class PlayerController3D : MonoBehaviour
     public float Stamina01 => Mathf.Clamp01(stamina / staminaMax);
     public float Sanity01 => Mathf.Clamp01(sanity / sanityMax);
 
-    // NEW: state
     bool gameOverTriggered = false;
 
     void Awake()
@@ -207,8 +190,6 @@ public class PlayerController3D : MonoBehaviour
         }
 
         if (useItemFeedbackText) useItemFeedbackText.text = "";
-
-        // NEW: ซ่อน panel ตอนเริ่ม
         if (gameOverPanel) gameOverPanel.SetActive(false);
 
         UpdateSanityUI();
@@ -223,18 +204,31 @@ public class PlayerController3D : MonoBehaviour
     void OnEnable()
     {
         moveA?.Enable(); lookA?.Enable(); runA?.Enable(); crouchA?.Enable(); useItemA?.Enable();
+        // hook: กันเหนียวรีเซ็ตหลังโหลดซีน
+        SceneManager.sceneLoaded += _OnSceneLoadedReset;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
+
     void OnDisable()
     {
         moveA?.Disable(); lookA?.Disable(); runA?.Disable(); crouchA?.Disable(); useItemA?.Disable();
+        SceneManager.sceneLoaded -= _OnSceneLoadedReset;
+    }
+
+    // เรียกทุกครั้งหลังโหลดซีนใหม่ เพื่อกัน state ค้าง
+    void _OnSceneLoadedReset(Scene s, LoadSceneMode m)
+    {
+        Time.timeScale = 1f;
+        AudioListener.pause = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     void Update()
     {
-        // ===== External look override / follow =====
         bool usingOverride = ApplyExternalLookIfAny();
 
-        // ===== Inputs =====
         Vector2 move = controlLocked ? Vector2.zero : (moveA != null ? moveA.ReadValue<Vector2>() : Vector2.zero);
         Vector2 look = (!usingOverride && !controlLocked && lookA != null) ? lookA.ReadValue<Vector2>() : Vector2.zero;
         bool wantSprint = !controlLocked && runA != null && runA.IsPressed();
@@ -243,23 +237,17 @@ public class PlayerController3D : MonoBehaviour
             crouchInput = crouchToggle ? crouchA.WasPressedThisFrame() : crouchA.IsPressed();
         bool useItemPressed = !controlLocked && useItemA != null && useItemA.WasPressedThisFrame();
 
-        // ===== Accumulate yaw/pitch =====
         yaw += look.x * sensX;
         pitch = Mathf.Clamp(pitch - look.y * sensY, minPitch, maxPitch);
-
-        // ===== Apply rotation =====
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
         if (cameraHolder) cameraHolder.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         else if (playerCamera) playerCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
 
-        // ===== Crouch =====
         if (crouchToggle) { if (crouchInput) isCrouching = !isCrouching; }
         else { isCrouching = crouchInput; }
         if (isCrouching) isSprinting = false;
 
-        // ===== Sprint & Stamina =====
-        Vector2 moveForCheck = move;
-        bool canMove = moveForCheck.sqrMagnitude > 0.001f;
+        bool canMove = move.sqrMagnitude > 0.001f;
         bool canStartSprint = !isCrouching && canMove && stamina >= minSprintToStart;
         if (wantSprint && canStartSprint) isSprinting = true;
         if (!wantSprint || !canMove || stamina <= 0f) isSprinting = false;
@@ -275,7 +263,6 @@ public class PlayerController3D : MonoBehaviour
         }
         UpdateStaminaUI();
 
-        // ===== Move =====
         Vector3 wish = transform.right * move.x + transform.forward * move.y;
         if (wish.sqrMagnitude > 1f) wish.Normalize();
         float targetSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
@@ -285,18 +272,13 @@ public class PlayerController3D : MonoBehaviour
         velocity.x = wish.x * currentSpeed;
         velocity.z = wish.z * currentSpeed;
 
-        // ===== Ground / Gravity =====
         bool grounded = IsGroundedSphere();
         velocity.y = grounded ? Mathf.Min(velocity.y, stickToGroundForce) : velocity.y + gravity * Time.deltaTime;
 
-        // ===== Height Lerp & keep bottom =====
         float wantHeight = Mathf.Max(isCrouching ? crouchHeight : standHeight, cc.radius * 2f + 0.01f);
         cc.height = Mathf.Lerp(cc.height, wantHeight, Time.deltaTime * heightLerpSpeed);
-        var c = cc.center;
-        c.y = capsuleBottomLocalY + cc.height * 0.5f;
-        cc.center = c;
+        var c = cc.center; c.y = capsuleBottomLocalY + cc.height * 0.5f; cc.center = c;
 
-        // ===== Camera crouch offset =====
         if (cameraHolder)
         {
             float targetCamY = isCrouching ? crouchCamY : standCamY;
@@ -306,13 +288,10 @@ public class PlayerController3D : MonoBehaviour
             cameraHolder.localPosition = lp;
         }
 
-        // ===== Apply Move =====
         cc.Move(velocity * Time.deltaTime);
 
-        // ===== Footstep =====
         UpdateFootstep();
 
-        // ===== Sanity & Use Item =====
         if (sanityRegenPerSec > 0f && sanity < sanityMax)
         {
             sanity = Mathf.Min(sanityMax, sanity + sanityRegenPerSec * Time.deltaTime);
@@ -326,14 +305,14 @@ public class PlayerController3D : MonoBehaviour
             if (feedbackTimer <= 0f && useItemFeedbackText) { useItemFeedbackText.text = ""; feedbackTimer = -1f; }
         }
 
-        // ===== NEW: Trigger GameOver เมื่อ Sanity เต็ม =====
+        // Trigger GameOver เมื่อ Sanity เต็ม
         if (!gameOverTriggered && sanity >= sanityMax - 0.0001f)
         {
             StartCoroutine(Co_GameOver());
         }
     }
 
-    // ===== External control for cutscene / trigger =====
+    // ===== External control =====
     public void LockControl(bool locked)
     {
         controlLocked = locked;
@@ -342,7 +321,6 @@ public class PlayerController3D : MonoBehaviour
         if (locked && TryGetComponent<CharacterController>(out var ch)) ch.Move(Vector3.zero);
     }
 
-    // เริ่มโหมด "กล้องตามเป้า"
     public void StartLookFollow(Transform target, float rotateSpeed = 8f, bool lockControl = true)
     {
         followTarget = target;
@@ -351,7 +329,6 @@ public class PlayerController3D : MonoBehaviour
         lookOverride = true;
     }
 
-    // หยุดตามเป้า
     public void StopLookFollow(bool unlockControl = true)
     {
         followTarget = null;
@@ -439,15 +416,9 @@ public class PlayerController3D : MonoBehaviour
         Vector3 origin = transform.position + Vector3.up * 0.1f;
         if (Physics.Raycast(origin, Vector3.down, out var hit, surfaceRaycastDistance, surfaceRaycastMask, QueryTriggerInteraction.Ignore))
         {
-            if (surfaceFrom == SurfaceSource.Tag)
-            {
-                return hit.collider.tag;
-            }
-            else
-            {
-                var pm = hit.collider.sharedMaterial;
-                if (pm) return pm.name;
-            }
+            if (surfaceFrom == SurfaceSource.Tag) return hit.collider.tag;
+            var pm = hit.collider.sharedMaterial;
+            if (pm) return pm.name;
         }
         return "Default";
     }
@@ -571,28 +542,30 @@ public class PlayerController3D : MonoBehaviour
         if (staminaText) staminaText.text = $"Stamina: {Mathf.RoundToInt(stamina)}/{Mathf.RoundToInt(staminaMax)}";
     }
 
-    // === NEW: GameOver routine ===
+    // === GameOver routine (fixed) ===
     System.Collections.IEnumerator Co_GameOver()
     {
         gameOverTriggered = true;
 
-        // หยุดควบคุมผู้เล่น + ตัดเสียงเดิน
+        // ล็อกควบคุม + หยุดเสียง
         LockControl(true);
-        if (footstepSource)
-        {
-            footstepSource.Stop();
-            footstepSource.volume = 0f;
-        }
+        if (footstepSource) { footstepSource.Stop(); footstepSource.volume = 0f; }
 
         if (gameOverPanel) gameOverPanel.SetActive(true);
 
-        // รอแบบไม่ขึ้นกับ timeScale
+        // รอแบบไม่อิง timeScale
         float t = 0f;
         while (t < Mathf.Max(0f, gameOverShowSeconds))
         {
             t += Time.unscaledDeltaTime;
             yield return null;
         }
+
+        // รีเซ็ต state ที่ชอบค้างก่อนโหลดซีนใหม่
+        Time.timeScale = 1f;
+        AudioListener.pause = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         // โหลดซีนปลายทาง
         if (!string.IsNullOrEmpty(gameOverSceneName))

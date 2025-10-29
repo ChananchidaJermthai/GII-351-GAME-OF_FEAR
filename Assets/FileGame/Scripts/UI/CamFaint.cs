@@ -62,6 +62,8 @@ public class CamFaint : MonoBehaviour
         EnsureAudio();
         EnsureBlackOverlay();
         if (playOnStart) PlaySequence();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void OnEnable()
