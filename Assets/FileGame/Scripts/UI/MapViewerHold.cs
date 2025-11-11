@@ -72,12 +72,18 @@ public class MapViewerHold : MonoBehaviour
 
     void OnEnable() 
     { 
-        holdAction?.action?.Enable();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        holdAction?.action?.Enable();
 
     }
-    void OnDisable() { holdAction?.action?.Disable(); SetOpen(false, true); HideHint(true); }
+    void OnDisable() 
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        holdAction?.action?.Disable(); 
+        SetOpen(false, true); HideHint(true); 
+    }
 
     void Update()
     {
