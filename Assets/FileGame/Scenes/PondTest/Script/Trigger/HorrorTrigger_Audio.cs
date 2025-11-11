@@ -40,6 +40,7 @@ public class HorrorTrigger_Audio : MonoBehaviour
 
         Vector3 pos = soundPoint ? soundPoint.position : transform.position;
         PlayAt(pos);
+        AmbientRoomAudioManager.FocusDuck();
 
         used = true;
     }
