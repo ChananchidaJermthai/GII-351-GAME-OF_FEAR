@@ -83,7 +83,7 @@ public class Flashlight : MonoBehaviour
     [Header("Close Object Dimming")]
     public bool enableProximityDimming = true;
     public float dimCheckDistance = 3f;
-    public float minDimIntensityFactor = 0.5f;
+    [Range(0f, 1f)] public float minDimIntensityFactor = 0.5f; // ⬅️ ทำเป็นสไลเดอร์ปรับได้ใน Inspector
     public LayerMask dimLayerMask = Physics.DefaultRaycastLayers;
 
     [Header("Flicker Sound")]
@@ -94,7 +94,7 @@ public class Flashlight : MonoBehaviour
     private float lastIntensity = 0f;
 
     private bool isOn = true;
-    private bool wantFocus = false;
+    private bool wantFocus = false; // ใช้งานได้เฉพาะผ่าน Input Action (ตัดคลิกขวาแล้ว)
     private float timeLeft;
     private float prevTimeLeft;
     private float nextReloadAllowedAt = 0f;
@@ -183,14 +183,14 @@ public class Flashlight : MonoBehaviour
     void HandleInputsFallback()
     {
         if (playerInput) return;
-        var kb = Keyboard.current; var mouse = Mouse.current;
+        var kb = Keyboard.current;
         if (kb == null) return;
 
         if (kb[toggleKey].wasPressedThisFrame) Toggle();
         if (kb[reloadKey].wasPressedThisFrame) TryReload();
         if (kb[brightUpKey].wasPressedThisFrame) AdjustBrightness(+userBrightnessStep);
         if (kb[brightDownKey].wasPressedThisFrame) AdjustBrightness(-userBrightnessStep);
-        wantFocus = mouse != null && mouse.rightButton.isPressed;
+        // ❌ ตัด logic คลิกขวาเพื่อ Focus ออกแล้ว (ไม่ตั้งค่า wantFocus จาก Mouse อีก)
     }
 
     void Toggle()
@@ -233,17 +233,16 @@ public class Flashlight : MonoBehaviour
         if (!spot) return;
         float pct = GetBatteryPct();
 
-        // Flicker แบบ A
+        // Flicker แบบ A — แบตยิ่งน้อย ยิ่งกระพริบแรง
         float n = Mathf.PerlinNoise(perlinT, 0.123f);
         float amp = Mathf.Lerp(perlinAmplitude * 2f, perlinAmplitude, pct);
         float flicker = enableFlicker ? (1f + (n - 0.5f) * 2f * amp) : 1f;
 
-        // Base Intensity
         float i = baseIntensity * userBrightness * flicker * lumenToUnity;
         if (wantFocus) i *= focusIntensityMul;
         i *= Mathf.Lerp(0.6f, 1.0f, pct);
 
-        // 🔸 ลดความสว่างเมื่อเข้าใกล้วัตถุ
+        // ลดความสว่างเมื่อเข้าใกล้วัตถุ
         float proximityFactor = 1f;
         if (enableProximityDimming && spot)
         {
@@ -256,7 +255,6 @@ public class Flashlight : MonoBehaviour
         }
         i *= proximityFactor;
 
-        // Apply Light
         float targetIntensity = isOn ? i : 0f;
         float targetRange = (wantFocus ? baseRange * focusRangeMul : baseRange);
         float targetAngle = wantFocus ? focusSpotAngle : baseSpotAngle;
@@ -267,7 +265,7 @@ public class Flashlight : MonoBehaviour
         spot.spotAngle = Mathf.Lerp(spot.spotAngle, targetAngle, dt * focusTransition);
         spot.enabled = (spot.intensity > 0.02f && isOn);
 
-        // 🔸 เล่นเสียง Flicker เมื่อกระพริบแรง
+        // เล่นเสียง Flicker เมื่อกระพริบแรง (กันสแปมด้วย Cooldown)
         if (audioSrc && sfxFlicker && Time.time >= nextFlickerSoundTime)
         {
             float diff = Mathf.Abs(spot.intensity - lastIntensity);
