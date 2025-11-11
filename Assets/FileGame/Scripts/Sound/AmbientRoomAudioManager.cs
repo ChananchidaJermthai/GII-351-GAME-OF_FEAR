@@ -10,8 +10,10 @@ public class AmbientRoomAudioManager : MonoBehaviour
     [Header("References")]
     public Transform Player;
 
+    [Header("Default Settings")]
     [Tooltip("เสียง ambient พื้นฐานเมื่ออยู่นอกทุกห้อง")]
     public AudioClip defaultClip;
+    [Range(0f, 1f)] public float defaultVolume = 1f;
 
     [Header("Follow / Output Mode")]
     [Tooltip("ให้ตัว Manager ตามผู้เล่นเพื่อให้เสียง 3D ติดตัวผู้เล่น")]
@@ -21,9 +23,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
     public bool usePlayersAudioSources = false;
     [Tooltip("กำหนด AudioSource บน Player สำหรับ Default (ปล่อยว่างถ้าไม่ใช้)")]
     public AudioSource defaultSourceFromPlayer;
-    [Header("Default Settings")]
-    [Range(0f, 1f)] public float defaultVolume = 1f; // ความดังพื้นฐานของ default clip
-
     [Tooltip("กำหนด AudioSource บน Player สำหรับ Room แทร็กแรก (ที่เหลือจะสร้างเพิ่มอัตโนมัติ)")]
     public AudioSource roomSourceFromPlayer;
 
@@ -38,7 +37,7 @@ public class AmbientRoomAudioManager : MonoBehaviour
     public class SubClip
     {
         public AudioClip clip;
-        [Range(0f, 1f)] public float volume = 1f; // เลเวลของแทร็กย่อย
+        [Range(0f, 1f)] public float volume = 1f;
         public bool loop = true;
     }
 
@@ -55,19 +54,58 @@ public class AmbientRoomAudioManager : MonoBehaviour
 
     // ===== runtime =====
     AudioSource defaultSource;
-    readonly List<AudioSource> roomSources = new List<AudioSource>(); // รองรับหลายแทร็ก
-    Transform roomMixerRoot; // โหนดไว้ใส่ซับซอร์ส
+    readonly List<AudioSource> roomSources = new List<AudioSource>();
+    Transform roomMixerRoot;
 
-    // ห้องที่ผู้เล่นกำลังอยู่ (ลำดับเวลาเข้า) — ตัวท้ายสุดคือ “ห้องล่าสุด”
     readonly List<string> activeRoomStack = new List<string>();
-    // โซน (Collider) -> roomId
     readonly Dictionary<Collider, string> zoneIdByCollider = new Dictionary<Collider, string>();
 
     string CurrentRoomId => activeRoomStack.Count > 0 ? activeRoomStack[activeRoomStack.Count - 1] : null;
 
-    float roomBus;               // ค่าปัจจุบันของ bus (0..1) ใช้ cross-fade กับ default
-    float roomBusTarget;         // เป้าหมายของ bus
-    RoomMap currentRoomConfig;   // เก็บคอนฟิกล่าสุดเพื่ออัปเดตซอร์ส
+    float roomBus;
+    float roomBusTarget;
+    RoomMap currentRoomConfig;
+
+    // === Global Ducking (Focus Event) ===
+    [Header("Global Ducking (Focus Event)")]
+    public bool enableGlobalDucking = true;
+    [Tooltip("ระดับลดเสียงของ ambience ระหว่างโฟกัสอีเวนต์ (0 = เงียบ, 1 = ปกติ)")]
+    [Range(0f, 1f)] public float duckTarget = 0.25f;
+    [Tooltip("เวลาลดเสียงให้ถึง duckTarget")]
+    [Range(0.01f, 2f)] public float duckAttack = 0.06f;
+    [Tooltip("เวลาค้างโฟกัส")]
+    [Range(0f, 3f)] public float duckHold = 0.8f;
+    [Tooltip("เวลาคลายกลับปกติ")]
+    [Range(0.01f, 2f)] public float duckRelease = 0.6f;
+
+    float _duck = 1f;
+    float _duckGoal = 1f;
+    float _duckTimerAttack, _duckTimerHold, _duckTimerRelease;
+    bool _duckActive = false;
+
+    public static void FocusDuck()
+    {
+        if (Instance) Instance.BeginFocusDuck(Instance.duckTarget, Instance.duckAttack, Instance.duckHold, Instance.duckRelease);
+    }
+    public static void FocusDuck(float target, float attack, float hold, float release)
+    {
+        if (Instance) Instance.BeginFocusDuck(target, attack, hold, release);
+    }
+    public void BeginFocusDuck(float target, float attack, float hold, float release)
+    {
+        if (!enableGlobalDucking) return;
+
+        target = Mathf.Clamp01(target);
+        attack = Mathf.Max(0.01f, attack);
+        release = Mathf.Max(0.01f, release);
+        hold = Mathf.Max(0f, hold);
+
+        _duckActive = true;
+        _duckGoal = target;
+        _duckTimerAttack = attack;
+        _duckTimerHold = hold;
+        _duckTimerRelease = release;
+    }
 
     void Awake()
     {
@@ -80,7 +118,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
             transform.localPosition = Vector3.zero;
         }
 
-        // Prepare default source
         if (usePlayersAudioSources && defaultSourceFromPlayer)
         {
             defaultSource = defaultSourceFromPlayer;
@@ -95,15 +132,13 @@ public class AmbientRoomAudioManager : MonoBehaviour
             defaultSource.volume = 1f; defaultSource.clip = defaultClip;
         }
 
-        // Create mixer root for room sources
         var mixerGO = new GameObject("RoomMixer");
         mixerGO.transform.SetParent(transform, false);
         roomMixerRoot = mixerGO.transform;
 
-        // If using player's first room source, add it into our pool; others will be created as needed
         if (usePlayersAudioSources && roomSourceFromPlayer)
         {
-            PrepareSource(roomSourceFromPlayer, defaultSource.spatialBlend);
+            PrepareSource(roomSourceFromPlayer, defaultSource ? defaultSource.spatialBlend : 1f);
             roomSources.Add(roomSourceFromPlayer);
         }
     }
@@ -116,36 +151,54 @@ public class AmbientRoomAudioManager : MonoBehaviour
         roomBus = 0f;
         roomBusTarget = 0f;
 
-        defaultSource.volume = Mathf.Clamp01(defaultVolume); // ตั้งเลเวลเริ่มต้น
+        defaultSource.volume = Mathf.Clamp01(defaultVolume);
     }
-
 
     void Update()
     {
-        // cross-fade bus value
         string cur = CurrentRoomId;
+
         if (string.IsNullOrEmpty(cur))
-        {
-            // เฟดกลับ default
             roomBus = Mathf.MoveTowards(roomBus, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+        else
+            roomBus = Mathf.MoveTowards(roomBus, roomBusTarget, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
+
+        float duckMultiplier = 1f;
+        if (_duckActive)
+        {
+            if (_duckTimerAttack > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, _duckGoal, Time.deltaTime / _duckTimerAttack);
+                _duckTimerAttack -= Time.deltaTime;
+                if (_duckTimerAttack <= 0f) _duck = _duckGoal;
+            }
+            else if (_duckTimerHold > 0f)
+            {
+                _duckTimerHold -= Time.deltaTime;
+                _duck = _duckGoal;
+            }
+            else if (_duckTimerRelease > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, 1f, Time.deltaTime / _duckTimerRelease);
+                _duckTimerRelease -= Time.deltaTime;
+                if (_duckTimerRelease <= 0f) { _duck = 1f; _duckActive = false; }
+            }
+            duckMultiplier = _duck;
         }
         else
         {
-            roomBus = Mathf.MoveTowards(roomBus, roomBusTarget, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
+            _duck = 1f;
+            duckMultiplier = 1f;
         }
 
-        // apply to room tracks
-        ApplyBusToRoomTracks(roomBus);
+        ApplyBusToRoomTracks(roomBus, duckMultiplier);
 
-        // default volume เป็น 1 - roomBus เพื่อไม่ให้ดังเกินรวม 1
-        defaultSource.volume = Mathf.Clamp01(defaultVolume) * (1f - roomBus);
+        float baseDefault = Mathf.Clamp01(defaultVolume) * (1f - roomBus);
+        defaultSource.volume = baseDefault * duckMultiplier;
 
-
-        // Safety: default always playing so there’s never silence
         if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
     }
 
-    // ====== เรียกจากโซน ======
     public void OnZoneEnter(GameObject zoneGO, Collider zoneCol)
     {
         if (!Player) return;
@@ -173,25 +226,19 @@ public class AmbientRoomAudioManager : MonoBehaviour
             zoneIdByCollider.Remove(zoneCol);
 
             bool stillAny = false;
-            foreach (var kv in zoneIdByCollider)
-            {
-                if (kv.Value == id) { stillAny = true; break; }
-            }
+            foreach (var kv in zoneIdByCollider) { if (kv.Value == id) { stillAny = true; break; } }
             if (!stillAny) activeRoomStack.Remove(id);
 
             ApplyRoom(CurrentRoomId);
         }
     }
 
-    // ====== ภายใน ======
     void ApplyRoom(string id)
     {
         if (string.IsNullOrEmpty(id))
         {
-            // no room => fade back to default
             roomBusTarget = 0f;
             currentRoomConfig = null;
-            // ไม่หยุดซอร์สทันที ปล่อยให้เฟดลงด้วย bus (แล้วหยุดเองเมื่อเบา)
             return;
         }
 
@@ -203,7 +250,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
         }
         else
         {
-            // ไม่พบ mapping → กลับ default
             roomBusTarget = 0f;
             currentRoomConfig = null;
         }
@@ -213,8 +259,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
     {
         int need = Mathf.Max(0, cfg.clips?.Count ?? 0);
 
-        // เพิ่ม/ลดจำนวน AudioSource ให้เท่ากับจำนวนคลิป
-        // กรณีมี roomSourceFromPlayer จะถูกใช้เป็นช่องแรกอยู่แล้ว
         while (roomSources.Count < need)
         {
             var go = new GameObject("RoomTrack_" + roomSources.Count);
@@ -230,7 +274,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
             roomSources.RemoveAt(roomSources.Count - 1);
         }
 
-        // เซ็ตคลิป/loop ให้แต่ละแทร็ก (ยังไม่ตั้ง volume ตรงนี้ ปล่อยให้ bus จัดการ)
         for (int i = 0; i < need; i++)
         {
             var sc = cfg.clips[i];
@@ -239,29 +282,25 @@ public class AmbientRoomAudioManager : MonoBehaviour
             if (s.clip != sc.clip)
             {
                 s.clip = sc.clip;
-                // ถ้า bus > 0 ให้เริ่มเล่นทันทีเพื่อความต่อเนื่อง
                 if (roomBusTarget > 0f && sc.clip) s.Play();
             }
             s.loop = sc.loop;
         }
     }
 
-    void ApplyBusToRoomTracks(float bus)
+    void ApplyBusToRoomTracks(float bus, float duckMultiplier)
     {
-        // ปรับโวลลูมแยกแต่ละแทร็ก = bus * subTrack.volume
         if (currentRoomConfig != null && currentRoomConfig.clips != null)
         {
             for (int i = 0; i < roomSources.Count; i++)
             {
                 var s = roomSources[i];
                 var sc = i < currentRoomConfig.clips.Count ? currentRoomConfig.clips[i] : null;
-
-                if (s == null || sc == null)
-                    continue;
+                if (s == null || sc == null) continue;
 
                 float target = Mathf.Clamp01(bus) * Mathf.Clamp01(sc.volume);
+                target *= duckMultiplier;
 
-                // start/stop ตามระดับเสียง
                 if (target > 0.01f)
                 {
                     if (sc.clip && !s.isPlaying) s.Play();
@@ -269,7 +308,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
                 }
                 else
                 {
-                    // ค่อย ๆ ลดเสียงลง
                     s.volume = Mathf.MoveTowards(s.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
                     if (s.isPlaying && s.volume <= 0.01f) s.Stop();
                 }
@@ -277,7 +315,6 @@ public class AmbientRoomAudioManager : MonoBehaviour
         }
         else
         {
-            // ไม่มีห้อง → ลดทุกแทร็กลง
             foreach (var s in roomSources)
             {
                 if (!s) continue;

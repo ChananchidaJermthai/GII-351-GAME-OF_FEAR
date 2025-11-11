@@ -66,6 +66,9 @@ public class PatientSpawnTrigger : MonoBehaviour
         if (spawnSfx) { _audio.transform.position = patient.transform.position; _audio.PlayOneShot(spawnSfx, sfxVolume); }
         TryAddSanity(player.gameObject, addSanity);
 
+        AmbientRoomAudioManager.FocusDuck();  // โฟกัสเสียงอีเวนต์ (คนไข้โผล่)
+
+
         // 4) รอสัก 1–2 วิ ก่อนสั่งเดิน
         float wait = Random.Range(waitBeforeWalk.x, waitBeforeWalk.y);
         yield return new WaitForSeconds(wait);

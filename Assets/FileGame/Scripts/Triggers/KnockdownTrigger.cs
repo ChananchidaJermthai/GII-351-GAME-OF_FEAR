@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -11,39 +11,39 @@ public class KnockdownTrigger : MonoBehaviour
     public bool disableTriggerAfterRun = true;
 
     [Header("Target Object (Thing to fall)")]
-    [Tooltip("��˹��ѵ�ط������ '��/���' �й�����繵�Ƿ���� Rigidbody (�� ���/��鹢ͧ��)")]
+    [Tooltip("¡ÓË¹´ÇÑµ¶Ø·Õè¨ÐãËé 'µ¡/ËÅè¹' á¹Ð¹ÓãËéà»ç¹µÑÇ·ÕèÁÕ Rigidbody (àªè¹ ªÑé¹/ªÔé¹¢Í§µ¡)")]
     public Rigidbody targetRb;
 
-    [Tooltip("�������˹� ���ѹ���ͧ价�� Transform �ͧ targetRb")]
+    [Tooltip("¶éÒäÁè¡ÓË¹´ ¨ÐËÑ¹¡ÅéÍ§ä»·Õè Transform ¢Í§ targetRb")]
     public Transform lookAtOverride;
 
     [Header("Push Settings")]
-    [Tooltip("�������͹��ѡ (�Թҷ�) ���ͷӨѧ�����͡������)")]
+    [Tooltip("´ÕàÅÂì¡èÍ¹¼ÅÑ¡ (ÇÔ¹Ò·Õ) à¾×èÍ·Ó¨Ñ§ËÇÐËÅÍ¡¼ÙéàÅè¹)")]
     public Vector2 delayBeforePush = new Vector2(0.1f, 0.35f);
 
-    [Tooltip("�Դ gravity ���������·ѹ��������������ѡ")]
+    [Tooltip("à»Ô´ gravity ãËéà»éÒËÁÒÂ·Ñ¹·ÕàÁ×èÍàÃÔèÁ¼ÅÑ¡")]
     public bool enableGravityOnPush = true;
 
-    [Tooltip("�Ŵ isKinematic ������������ѡ (��� Rigidbody �繤���ҵԡ����)")]
+    [Tooltip("»Å´ isKinematic àÁ×èÍàÃÔèÁ¼ÅÑ¡ (¶éÒ Rigidbody à»ç¹¤Ôà¹ÁÒµÔ¡ÍÂÙè)")]
     public bool disableKinematicOnPush = true;
 
-    [Tooltip("�ç��ѡ����� (��ȷҧ�᡹ local ���� world ��� useLocalDirection)")]
+    [Tooltip("áÃ§¼ÅÑ¡â´ÂÃÇÁ (·ÔÈ·Ò§ã¹á¡¹ local ËÃ×Í world µÒÁ useLocalDirection)")]
     public float pushForce = 4f;
 
-    [Tooltip("��ȷҧ�ç��ѡ (������ŧ/��§)")]
+    [Tooltip("·ÔÈ·Ò§áÃ§¼ÅÑ¡ (»¡µÔãªéÅ§/à©ÕÂ§)")]
     public Vector3 pushDirection = new Vector3(0.2f, -1f, 0f);
 
-    [Tooltip("��᡹ local �ͧ�ѵ���������㹡�äٳ��ȷҧ�ç")]
+    [Tooltip("ãªéá¡¹ local ¢Í§ÇÑµ¶Øà»éÒËÁÒÂã¹¡ÒÃ¤Ù³·ÔÈ·Ò§áÃ§")]
     public bool useLocalDirection = false;
 
-    [Tooltip("�ç�Դ (������ͧ��ع)")]
+    [Tooltip("áÃ§ºÔ´ (»Ñè¹ãËé¢Í§ËÁØ¹)")]
     public Vector3 torqueImpulse = new Vector3(0f, 0f, 0.5f);
 
     [Header("Camera / Control")]
-    [Tooltip("�����ǡ���ѹ��� (��Ѻ PlayerController3D.StartLookFollow)")]
+    [Tooltip("¤ÇÒÁäÇ¡ÒÃËÑ¹µÒÁ (ãªé¡Ñº PlayerController3D.StartLookFollow)")]
     public float followRotateSpeed = 8f;
 
-    [Tooltip("����˹�ǧ��硹�����ѧ��ѡ ��͹�׹�͹���")]
+    [Tooltip("àÇÅÒË¹èÇ§àÅç¡¹éÍÂËÅÑ§¼ÅÑ¡ ¡èÍ¹¤×¹¤Í¹â·ÃÅ")]
     public float holdAfterPush = 0.5f;
 
     [Header("Audio")]
@@ -87,31 +87,32 @@ public class KnockdownTrigger : MonoBehaviour
 
     IEnumerator RunSequence(Transform player)
     {
-        // 1) ����� look target
+        // 1) àµÃÕÂÁ look target
         Transform lookTarget = lookAtOverride;
         if (!lookTarget && targetRb) lookTarget = targetRb.transform;
 
-        // 2) ��͡�͹��� + �����ͧ�ѹ����ѵ��
+        // 2) ÅçÍ¡¤Í¹â·ÃÅ + ãËé¡ÅéÍ§ËÑ¹µÒÁÇÑµ¶Ø
         var pc = player.GetComponent<PlayerController3D>();
         if (pc && lookTarget)
             pc.StartLookFollow(lookTarget, followRotateSpeed, true);
 
-        // 3) �ʹ�����������͹��ѡ (�������ҧ�ѧ����ǧ/���)
+        // 3) ÃÍ´ÕàÅÂìÊØèÁ¡èÍ¹¼ÅÑ¡ (à¾×èÍÊÃéÒ§¨Ñ§ËÇÐÅÇ§/µ¡ã¨)
         float wait = Mathf.Clamp(Random.Range(delayBeforePush.x, delayBeforePush.y), 0f, 10f);
         if (wait > 0f) yield return new WaitForSeconds(wait);
 
-        // 4) ��ѡ�ͧ��鵡
+        // 4) ¼ÅÑ¡¢Í§ãËéµ¡
         DoKnockdown();
 
-        // 5) ������§ � �ش���ͧ��
+        // 5) àÅè¹àÊÕÂ§ ³ ¨Ø´·Õè¢Í§µ¡
         if (fallSfx)
         {
             Vector3 pos = targetRb ? targetRb.transform.position : transform.position;
             _audio.transform.position = pos;
             _audio.PlayOneShot(fallSfx, sfxVolume);
+            AmbientRoomAudioManager.FocusDuck(0.15f, 0.04f, 1.6f, 2f);
         }
 
-        // 6) ��ҧ���ͧ�ա��硹��� ���Ǥ׹�͹���
+        // 6) ¤éÒ§¡ÅéÍ§ÍÕ¡àÅç¡¹éÍÂ áÅéÇ¤×¹¤Í¹â·ÃÅ
         if (holdAfterPush > 0f) yield return new WaitForSeconds(holdAfterPush);
         if (pc) pc.StopLookFollow(true);
     }
@@ -120,19 +121,19 @@ public class KnockdownTrigger : MonoBehaviour
     {
         if (!targetRb)
         {
-            Debug.LogWarning("[KnockdownTrigger] targetRb ���١��˹�");
+            Debug.LogWarning("[KnockdownTrigger] targetRb äÁè¶Ù¡¡ÓË¹´");
             return;
         }
 
         if (disableKinematicOnPush) targetRb.isKinematic = false;
         if (enableGravityOnPush) targetRb.useGravity = true;
 
-        // �ӹǳ��ȷҧ�ç
+        // ¤Ó¹Ç³·ÔÈ·Ò§áÃ§
         Vector3 dir = pushDirection;
         if (useLocalDirection) dir = targetRb.transform.TransformDirection(dir);
         dir = dir.normalized;
 
-        // ����ç/�ç�ԴẺ impulse
+        // ãÊèáÃ§/áÃ§ºÔ´áºº impulse
         if (pushForce > 0f) targetRb.AddForce(dir * pushForce, ForceMode.Impulse);
         if (torqueImpulse.sqrMagnitude > 0f) targetRb.AddTorque(torqueImpulse, ForceMode.Impulse);
     }
