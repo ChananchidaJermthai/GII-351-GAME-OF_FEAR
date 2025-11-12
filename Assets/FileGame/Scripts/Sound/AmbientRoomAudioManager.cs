@@ -10,8 +10,10 @@ public class AmbientRoomAudioManager : MonoBehaviour
     [Header("References")]
     public Transform Player;
 
+    [Header("Default Settings")]
     [Tooltip("เสียง ambient พื้นฐานเมื่ออยู่นอกทุกห้อง")]
     public AudioClip defaultClip;
+    [Range(0f, 1f)] public float defaultVolume = 1f;
 
     [Header("Follow / Output Mode")]
     [Tooltip("ให้ตัว Manager ตามผู้เล่นเพื่อให้เสียง 3D ติดตัวผู้เล่น")]
@@ -21,7 +23,7 @@ public class AmbientRoomAudioManager : MonoBehaviour
     public bool usePlayersAudioSources = false;
     [Tooltip("กำหนด AudioSource บน Player สำหรับ Default (ปล่อยว่างถ้าไม่ใช้)")]
     public AudioSource defaultSourceFromPlayer;
-    [Tooltip("กำหนด AudioSource บน Player สำหรับ Room (ปล่อยว่างถ้าไม่ใช้)")]
+    [Tooltip("กำหนด AudioSource บน Player สำหรับ Room แทร็กแรก (ที่เหลือจะสร้างเพิ่มอัตโนมัติ)")]
     public AudioSource roomSourceFromPlayer;
 
     [Header("Fade Settings")]
@@ -32,24 +34,78 @@ public class AmbientRoomAudioManager : MonoBehaviour
     public IdSource idSource = IdSource.Tag;
 
     [Serializable]
+    public class SubClip
+    {
+        public AudioClip clip;
+        [Range(0f, 1f)] public float volume = 1f;
+        public bool loop = true;
+    }
+
+    [Serializable]
     public class RoomMap
     {
         public string id = "bathroom";
-        public AudioClip clip;
-        [Range(0f, 1f)] public float volume = 1f;
+        [Tooltip("ปรับเลเวลรวม (bus) ของห้องนี้")]
+        [Range(0f, 1f)] public float busVolume = 1f;
+        [Tooltip("รายการเสียงหลายแทร็กในห้องเดียว (เล่นซ้อนกันได้)")]
+        public List<SubClip> clips = new List<SubClip>();
     }
     public RoomMap[] roomClips;
 
-    // runtime audio
-    AudioSource defaultSource, roomSource;
+    // ===== runtime =====
+    AudioSource defaultSource;
+    readonly List<AudioSource> roomSources = new List<AudioSource>();
+    Transform roomMixerRoot;
 
-    // ห้องที่ผู้เล่นกำลังอยู่ (ลำดับเวลาเข้า) — ตัวท้ายสุดคือ “ห้องล่าสุด”
     readonly List<string> activeRoomStack = new List<string>();
-    // โซน (Collider) -> roomId
     readonly Dictionary<Collider, string> zoneIdByCollider = new Dictionary<Collider, string>();
 
     string CurrentRoomId => activeRoomStack.Count > 0 ? activeRoomStack[activeRoomStack.Count - 1] : null;
-    float roomTargetVol = 0f;
+
+    float roomBus;
+    float roomBusTarget;
+    RoomMap currentRoomConfig;
+
+    // === Global Ducking (Focus Event) ===
+    [Header("Global Ducking (Focus Event)")]
+    public bool enableGlobalDucking = true;
+    [Tooltip("ระดับลดเสียงของ ambience ระหว่างโฟกัสอีเวนต์ (0 = เงียบ, 1 = ปกติ)")]
+    [Range(0f, 1f)] public float duckTarget = 0.25f;
+    [Tooltip("เวลาลดเสียงให้ถึง duckTarget")]
+    [Range(0.01f, 2f)] public float duckAttack = 0.06f;
+    [Tooltip("เวลาค้างโฟกัส")]
+    [Range(0f, 3f)] public float duckHold = 0.8f;
+    [Tooltip("เวลาคลายกลับปกติ")]
+    [Range(0.01f, 2f)] public float duckRelease = 0.6f;
+
+    float _duck = 1f;
+    float _duckGoal = 1f;
+    float _duckTimerAttack, _duckTimerHold, _duckTimerRelease;
+    bool _duckActive = false;
+
+    public static void FocusDuck()
+    {
+        if (Instance) Instance.BeginFocusDuck(Instance.duckTarget, Instance.duckAttack, Instance.duckHold, Instance.duckRelease);
+    }
+    public static void FocusDuck(float target, float attack, float hold, float release)
+    {
+        if (Instance) Instance.BeginFocusDuck(target, attack, hold, release);
+    }
+    public void BeginFocusDuck(float target, float attack, float hold, float release)
+    {
+        if (!enableGlobalDucking) return;
+
+        target = Mathf.Clamp01(target);
+        attack = Mathf.Max(0.01f, attack);
+        release = Mathf.Max(0.01f, release);
+        hold = Mathf.Max(0f, hold);
+
+        _duckActive = true;
+        _duckGoal = target;
+        _duckTimerAttack = attack;
+        _duckTimerHold = hold;
+        _duckTimerRelease = release;
+    }
 
     void Awake()
     {
@@ -62,39 +118,40 @@ public class AmbientRoomAudioManager : MonoBehaviour
             transform.localPosition = Vector3.zero;
         }
 
-        // Prepare audio sources (either from player or create new)
-        if (usePlayersAudioSources && defaultSourceFromPlayer && roomSourceFromPlayer)
+        if (usePlayersAudioSources && defaultSourceFromPlayer)
         {
             defaultSource = defaultSourceFromPlayer;
-            roomSource = roomSourceFromPlayer;
-
-            // make sure basic flags are correct
             defaultSource.loop = true; defaultSource.playOnAwake = false;
-            roomSource.loop = true; roomSource.playOnAwake = false;
-
-            // for ambience stuck on player’s head, you can use 2D:
-            // defaultSource.spatialBlend = 0f; roomSource.spatialBlend = 0f;
         }
         else
         {
             defaultSource = gameObject.GetComponent<AudioSource>();
             if (!defaultSource) defaultSource = gameObject.AddComponent<AudioSource>();
             defaultSource.loop = true; defaultSource.playOnAwake = false;
-            defaultSource.spatialBlend = 1f; // set 0 for 2D if you want headset-style ambient
+            defaultSource.spatialBlend = 1f; // set 0 for 2D ambience
             defaultSource.volume = 1f; defaultSource.clip = defaultClip;
+        }
 
-            roomSource = gameObject.AddComponent<AudioSource>();
-            roomSource.loop = true; roomSource.playOnAwake = false;
-            roomSource.spatialBlend = defaultSource.spatialBlend;
-            roomSource.volume = 0f;
+        var mixerGO = new GameObject("RoomMixer");
+        mixerGO.transform.SetParent(transform, false);
+        roomMixerRoot = mixerGO.transform;
+
+        if (usePlayersAudioSources && roomSourceFromPlayer)
+        {
+            PrepareSource(roomSourceFromPlayer, defaultSource ? defaultSource.spatialBlend : 1f);
+            roomSources.Add(roomSourceFromPlayer);
         }
     }
 
     void Start()
     {
-        // Always keep default rolling to guarantee sound “every time”
         if (defaultClip && defaultSource.clip != defaultClip) defaultSource.clip = defaultClip;
         if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
+
+        roomBus = 0f;
+        roomBusTarget = 0f;
+
+        defaultSource.volume = Mathf.Clamp01(defaultVolume);
     }
 
     void Update()
@@ -102,27 +159,46 @@ public class AmbientRoomAudioManager : MonoBehaviour
         string cur = CurrentRoomId;
 
         if (string.IsNullOrEmpty(cur))
-        {
-            // ไม่มีห้อง → เฟดกลับ default (default ไม่เคยหยุด)
-            roomSource.volume = Mathf.MoveTowards(roomSource.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
-            defaultSource.volume = 1f - roomSource.volume;
+            roomBus = Mathf.MoveTowards(roomBus, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+        else
+            roomBus = Mathf.MoveTowards(roomBus, roomBusTarget, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
 
-            if (roomSource.isPlaying && roomSource.volume <= 0.01f) roomSource.Stop();
+        float duckMultiplier = 1f;
+        if (_duckActive)
+        {
+            if (_duckTimerAttack > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, _duckGoal, Time.deltaTime / _duckTimerAttack);
+                _duckTimerAttack -= Time.deltaTime;
+                if (_duckTimerAttack <= 0f) _duck = _duckGoal;
+            }
+            else if (_duckTimerHold > 0f)
+            {
+                _duckTimerHold -= Time.deltaTime;
+                _duck = _duckGoal;
+            }
+            else if (_duckTimerRelease > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, 1f, Time.deltaTime / _duckTimerRelease);
+                _duckTimerRelease -= Time.deltaTime;
+                if (_duckTimerRelease <= 0f) { _duck = 1f; _duckActive = false; }
+            }
+            duckMultiplier = _duck;
         }
         else
         {
-            // มีห้อง → เฟดเข้า room (ไม่ restart clip ถ้าเป็นคลิปเดิม)
-            roomSource.volume = Mathf.MoveTowards(roomSource.volume, roomTargetVol, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
-            defaultSource.volume = 1f - roomSource.volume;
-
-            if (roomSource.volume > 0.01f && roomSource.clip && !roomSource.isPlaying) roomSource.Play();
+            _duck = 1f;
+            duckMultiplier = 1f;
         }
 
-        // Safety: default always playing so there’s never silence
+        ApplyBusToRoomTracks(roomBus, duckMultiplier);
+
+        float baseDefault = Mathf.Clamp01(defaultVolume) * (1f - roomBus);
+        defaultSource.volume = baseDefault * duckMultiplier;
+
         if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
     }
 
-    // ====== เรียกจากโซน ======
     public void OnZoneEnter(GameObject zoneGO, Collider zoneCol)
     {
         if (!Player) return;
@@ -150,41 +226,110 @@ public class AmbientRoomAudioManager : MonoBehaviour
             zoneIdByCollider.Remove(zoneCol);
 
             bool stillAny = false;
-            foreach (var kv in zoneIdByCollider)
-            {
-                if (kv.Value == id) { stillAny = true; break; }
-            }
+            foreach (var kv in zoneIdByCollider) { if (kv.Value == id) { stillAny = true; break; } }
             if (!stillAny) activeRoomStack.Remove(id);
 
             ApplyRoom(CurrentRoomId);
         }
     }
 
-    // ====== ภายใน ======
     void ApplyRoom(string id)
     {
         if (string.IsNullOrEmpty(id))
         {
-            roomTargetVol = 0f; // เฟดกลับ default
+            roomBusTarget = 0f;
+            currentRoomConfig = null;
             return;
         }
 
-        if (TryGetRoomClip(id, out var clip, out var vol))
+        if (TryGetRoomConfig(id, out var cfg))
         {
-            // เปลี่ยนคลิปเฉพาะเมื่อคลิปไม่เหมือนเดิม เพื่อลดการ restart
-            if (roomSource.clip != clip)
-            {
-                roomSource.clip = clip;
-
-                // ถ้ากำลังเฟดเข้าอยู่แล้ว ให้เริ่มเล่นทันทีเพื่อความต่อเนื่อง
-                if (roomSource.volume > 0.01f && !roomSource.isPlaying) roomSource.Play();
-            }
-            roomTargetVol = vol;
+            currentRoomConfig = cfg;
+            roomBusTarget = Mathf.Clamp01(cfg.busVolume);
+            RebuildRoomTracks(cfg);
         }
         else
         {
-            roomTargetVol = 0f; // ไม่มี mapping → ถือว่า default
+            roomBusTarget = 0f;
+            currentRoomConfig = null;
         }
+    }
+
+    void RebuildRoomTracks(RoomMap cfg)
+    {
+        int need = Mathf.Max(0, cfg.clips?.Count ?? 0);
+
+        while (roomSources.Count < need)
+        {
+            var go = new GameObject("RoomTrack_" + roomSources.Count);
+            go.transform.SetParent(roomMixerRoot, false);
+            var src = go.AddComponent<AudioSource>();
+            PrepareSource(src, defaultSource ? defaultSource.spatialBlend : 1f);
+            roomSources.Add(src);
+        }
+        while (roomSources.Count > need)
+        {
+            var last = roomSources[roomSources.Count - 1];
+            if (last) Destroy(last.gameObject);
+            roomSources.RemoveAt(roomSources.Count - 1);
+        }
+
+        for (int i = 0; i < need; i++)
+        {
+            var sc = cfg.clips[i];
+            var s = roomSources[i];
+
+            if (s.clip != sc.clip)
+            {
+                s.clip = sc.clip;
+                if (roomBusTarget > 0f && sc.clip) s.Play();
+            }
+            s.loop = sc.loop;
+        }
+    }
+
+    void ApplyBusToRoomTracks(float bus, float duckMultiplier)
+    {
+        if (currentRoomConfig != null && currentRoomConfig.clips != null)
+        {
+            for (int i = 0; i < roomSources.Count; i++)
+            {
+                var s = roomSources[i];
+                var sc = i < currentRoomConfig.clips.Count ? currentRoomConfig.clips[i] : null;
+                if (s == null || sc == null) continue;
+
+                float target = Mathf.Clamp01(bus) * Mathf.Clamp01(sc.volume);
+                target *= duckMultiplier;
+
+                if (target > 0.01f)
+                {
+                    if (sc.clip && !s.isPlaying) s.Play();
+                    s.volume = target;
+                }
+                else
+                {
+                    s.volume = Mathf.MoveTowards(s.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+                    if (s.isPlaying && s.volume <= 0.01f) s.Stop();
+                }
+            }
+        }
+        else
+        {
+            foreach (var s in roomSources)
+            {
+                if (!s) continue;
+                s.volume = Mathf.MoveTowards(s.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+                if (s.isPlaying && s.volume <= 0.01f) s.Stop();
+            }
+        }
+    }
+
+    void PrepareSource(AudioSource src, float spatial)
+    {
+        src.playOnAwake = false;
+        src.loop = true;
+        src.spatialBlend = spatial; // 1 = 3D, 0 = 2D
+        src.volume = 0f;
     }
 
     string GetRoomId(GameObject zone, Collider col)
@@ -194,7 +339,7 @@ public class AmbientRoomAudioManager : MonoBehaviour
         return pm ? pm.name : null;
     }
 
-    bool TryGetRoomClip(string id, out AudioClip clip, out float vol)
+    bool TryGetRoomConfig(string id, out RoomMap cfg)
     {
         if (roomClips != null)
         {
@@ -202,12 +347,12 @@ public class AmbientRoomAudioManager : MonoBehaviour
             {
                 if (rm != null && rm.id == id)
                 {
-                    clip = rm.clip; vol = rm.volume;
-                    return clip != null;
+                    cfg = rm;
+                    return true;
                 }
             }
         }
-        clip = null; vol = 0f;
+        cfg = null;
         return false;
     }
 }
