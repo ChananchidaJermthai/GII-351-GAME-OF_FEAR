@@ -338,4 +338,17 @@ public class Flashlight : MonoBehaviour
         _ff.intensity = Mathf.MoveTowards(_ff.intensity, baseI, ff_lerpSpeed * Time.deltaTime);
         _ff.enabled = _ff.intensity > 0.02f;
     }
+
+    
+    public void ForceOff(bool playSound = false)
+    {
+        isOn = false;
+
+        if (playSound && audioSrc && sfxToggleOff)
+        {
+            audioSrc.PlayOneShot(sfxToggleOff);
+        }
+    }
 }
+
+

@@ -1543,7 +1543,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5690837856146772529, guid: b81445fc0ba79524395c332876e08a43, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 32.16314
+      value: 36.82
       objectReference: {fileID: 0}
     - target: {fileID: 5690837856146772529, guid: b81445fc0ba79524395c332876e08a43, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2578,6 +2578,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 98644351}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1968077381 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6033683418836153065, guid: b81445fc0ba79524395c332876e08a43, type: 3}
+  m_PrefabInstance: {fileID: 994263044}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1398282889c06ba48b75adcbe015e9b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Flashlight
 --- !u!1 &1988638263
 GameObject:
   m_ObjectHideFlags: 0
@@ -2611,6 +2622,79 @@ Transform:
   - {fileID: 983318405}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &5710944395095289999
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 958080676667737087, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: flashlight
+      value: 
+      objectReference: {fileID: 1968077381}
+    - target: {fileID: 958080676667737087, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: lookTarget
+      value: 
+      objectReference: {fileID: 994263045}
+    - target: {fileID: 958080676667737087, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: playerCamera
+      value: 
+      objectReference: {fileID: 994263045}
+    - target: {fileID: 958080676667737087, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: 'environmentLights.Array.data[0]'
+      value: 
+      objectReference: {fileID: 325515178}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 27.70709
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.80941
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 54.12648
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4533350430207918248, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7995539576605122812, guid: ddc067925719312429a12b598ab5df51, type: 3}
+      propertyPath: m_Name
+      value: DoorLookScarePowerCut_TL
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ddc067925719312429a12b598ab5df51, type: 3}
 --- !u!1001 &6454266583727605968
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2689,3 +2773,4 @@ SceneRoots:
   - {fileID: 1988638264}
   - {fileID: 384984699}
   - {fileID: 572575770}
+  - {fileID: 5710944395095289999}
