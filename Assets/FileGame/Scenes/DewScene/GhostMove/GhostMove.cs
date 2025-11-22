@@ -19,7 +19,10 @@ public class GhostMove : MonoBehaviour
     public float rate = 30f;  // % โอกาสสุ่ม Spawn
 
     [Header("Options")]
-    public bool spawnOnce = false; // ถ้าติ๊กถูก จะ Spawn ครั้งเดียว
+    public bool spawnOnce = false;       // ถ้าติ๊กถูก จะ Spawn ครั้งเดียว
+    public AudioClip spawnSound;         // เสียงตอน Spawn (Optional)
+    [Range(0f, 1f)]
+    public float spawnVolume = 1f;       // ปรับความดังของเสียง
 
     // เก็บผีตัวล่าสุด
     private GameObject currentGhost;
@@ -57,6 +60,12 @@ public class GhostMove : MonoBehaviour
 
         // Instantiate ghost
         currentGhost = Instantiate(prefab, spawnPos, Quaternion.identity);
+
+        // เล่นเสียงถ้าใส่
+        if (spawnSound != null)
+        {
+            AudioSource.PlayClipAtPoint(spawnSound, spawnPos, spawnVolume);
+        }
 
         if (point3Destination != null)
         {
