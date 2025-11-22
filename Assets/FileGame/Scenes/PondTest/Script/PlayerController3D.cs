@@ -33,6 +33,8 @@ public class PlayerController3D : MonoBehaviour
     public float crouchHeight = 1.1f;
     public float heightLerpSpeed = 12f;
 
+    public LayerMask headBlockMask = ~0;
+
     [Header("Camera Crouch Offset")]
     public float standCamY = 1.6f;
     public float crouchCamY = 1.0f;
@@ -274,10 +276,11 @@ public class PlayerController3D : MonoBehaviour
                 }
                 else
                 {
-                    isCrouching = true; 
+                    isCrouching = true;
                 }
             }
         }
+
 
         if (isCrouching) isSprinting = false;
 
@@ -443,12 +446,29 @@ public class PlayerController3D : MonoBehaviour
         float half = targetHeight * 0.5f - radius;
         if (half < 0f) half = 0f;
 
-        Vector3 bottom = centerWorld + Vector3.down * half;
+        Vector3 bottom = centerWorld + Vector3.down * half + Vector3.up * 0.05f;
         Vector3 top = centerWorld + Vector3.up * half;
 
-        bool blocked = Physics.CheckCapsule(bottom, top, radius, groundMask, QueryTriggerInteraction.Ignore);
-        return !blocked;
+        Collider[] hits = Physics.OverlapCapsule(
+            bottom, top, radius, headBlockMask, QueryTriggerInteraction.Ignore
+        );
+
+        foreach (var col in hits)
+        {
+            // กันกรณีไปโดนตัวเอง (เผื่อมี collider อื่นติดอยู่กับ player)
+            if (col.attachedRigidbody && col.attachedRigidbody.gameObject == gameObject)
+                continue;
+            if (col.gameObject == gameObject)
+                continue;
+
+            // มีของกั้นหัว -> ลุกไม่ได้
+            return false;
+        }
+
+        // ไม่มีอะไรขวาง
+        return true;
     }
+
 
     bool IsGroundedSphere()
     {
