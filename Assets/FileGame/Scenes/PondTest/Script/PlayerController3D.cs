@@ -243,8 +243,42 @@ public class PlayerController3D : MonoBehaviour
         if (cameraHolder) cameraHolder.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         else if (playerCamera) playerCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
 
-        if (crouchToggle) { if (crouchInput) isCrouching = !isCrouching; }
-        else { isCrouching = crouchInput; }
+        if (crouchToggle)
+        {
+            if (crouchInput)
+            {
+                if (!isCrouching)
+                {
+                    isCrouching = true;
+                }
+                else
+                {
+                    if (CanStandUp())
+                    {
+                        isCrouching = false;
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (crouchInput)
+            {
+                isCrouching = true;
+            }
+            else
+            {
+                if (CanStandUp())
+                {
+                    isCrouching = false;
+                }
+                else
+                {
+                    isCrouching = true; 
+                }
+            }
+        }
+
         if (isCrouching) isSprinting = false;
 
         bool canMove = move.sqrMagnitude > 0.001f;
@@ -398,6 +432,24 @@ public class PlayerController3D : MonoBehaviour
     }
 
     // ===== Helpers =====
+    bool CanStandUp()
+    {
+        float targetHeight = Mathf.Max(standHeight, cc.radius * 2f + 0.01f);
+        float radius = cc.radius * 0.95f;
+
+        float centerLocalY = capsuleBottomLocalY + targetHeight * 0.5f;
+        Vector3 centerWorld = transform.TransformPoint(new Vector3(0f, centerLocalY, 0f));
+
+        float half = targetHeight * 0.5f - radius;
+        if (half < 0f) half = 0f;
+
+        Vector3 bottom = centerWorld + Vector3.down * half;
+        Vector3 top = centerWorld + Vector3.up * half;
+
+        bool blocked = Physics.CheckCapsule(bottom, top, radius, groundMask, QueryTriggerInteraction.Ignore);
+        return !blocked;
+    }
+
     bool IsGroundedSphere()
     {
         Vector3 bottom = transform.TransformPoint(new Vector3(0f, capsuleBottomLocalY + cc.skinWidth + groundProbeExtra, 0f));
