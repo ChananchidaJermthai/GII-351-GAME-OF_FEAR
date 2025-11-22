@@ -6,6 +6,10 @@ public class DoorLookScare : MonoBehaviour
     [Header("Player / Camera")]
     public Transform playerCamera;         // กล้องผู้เล่น
 
+    [Header("Look At Player")]
+    public bool makeGhostLookAtPlayer = true;   // เปิด/ปิดฟีเจอร์นี้
+    public float lookAtTurnSpeed = 10f;         // ความเร็วในการหมุนมอง
+
     [Header("Look Settings")]
     public Transform doorLookPoint;        // จุดที่ถือว่าเป็น "ทิศทางประตู"
     public float lookAngle = 20f;          // มองเข้าใกล้มุมนี้ = ถือว่ามองประตู
@@ -41,28 +45,51 @@ public class DoorLookScare : MonoBehaviour
 
     private void Update()
     {
-        if (!isActive || hasPlayed) return;
-        if (playerCamera == null || doorLookPoint == null) return;
-
-        Vector3 dirToDoor = doorLookPoint.position - playerCamera.position;
-        float distance = dirToDoor.magnitude;
-        if (distance > maxCheckDistance) return;
-
-        dirToDoor.Normalize();
-
-        // เอาแกน Y ออก เพื่อดูแค่แนวราบ (กันกรณีก้ม/เงยเยอะเกิน)
-        Vector3 camForward = playerCamera.forward;
-        camForward.y = 0f;
-        dirToDoor.y = 0f;
-
-        float angle = Vector3.Angle(camForward, dirToDoor);
-
-        if (angle <= lookAngle)
+        if (!isActive || hasPlayed)
         {
-            // ผู้เล่นหันมาทางประตูแล้ว → เริ่มหลอก
-            StartCoroutine(PlayDoorScareRoutine());
+
+        }
+        else
+        {
+            if (playerCamera == null || doorLookPoint == null) return;
+
+            Vector3 dirToDoor = doorLookPoint.position - playerCamera.position;
+            float distance = dirToDoor.magnitude;
+            if (distance <= maxCheckDistance)
+            {
+                dirToDoor.Normalize();
+
+                Vector3 camForward = playerCamera.forward;
+                camForward.y = 0f;
+                dirToDoor.y = 0f;
+
+                float angle = Vector3.Angle(camForward, dirToDoor);
+
+                if (angle <= lookAngle)
+                {
+                    StartCoroutine(PlayDoorScareRoutine());
+                }
+            }
+        }
+      
+        if (makeGhostLookAtPlayer && doorGhost != null && doorGhost.activeInHierarchy && playerCamera != null)
+        {
+            Vector3 targetPos = playerCamera.position;
+            targetPos.y = doorGhost.transform.position.y;
+
+            Vector3 dir = (targetPos - doorGhost.transform.position);
+            if (dir.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(dir.normalized);
+                doorGhost.transform.rotation = Quaternion.Slerp(
+                    doorGhost.transform.rotation,
+                    targetRot,
+                    Time.deltaTime * lookAtTurnSpeed
+                );
+            }
         }
     }
+
 
     public void Activate()
     {
@@ -84,28 +111,23 @@ public class DoorLookScare : MonoBehaviour
             doorGhost.SetActive(true);
         }
 
-        // เล่นอนิเมชั่นโผล่หัว
         if (doorGhostAnimator != null && !string.IsNullOrEmpty(appearTrigger))
         {
             doorGhostAnimator.SetTrigger(appearTrigger);
         }
 
-        // เล่นเสียง
         if (sfxSource != null && scareClip != null)
         {
             sfxSource.PlayOneShot(scareClip);
         }
 
-        // อยู่สักพัก
         yield return new WaitForSeconds(ghostStayDuration);
 
-        // เล่นอนิเมชั่นหาย (ถ้ามี)
         if (doorGhostAnimator != null && !string.IsNullOrEmpty(disappearTrigger))
         {
             doorGhostAnimator.SetTrigger(disappearTrigger);
         }
 
-        // ถ้าอยากให้รอให้อนิเมชั่นจบจริง ๆ ค่อยปิด ก็เพิ่ม Wait อีกตัวได้
         yield return new WaitForSeconds(0.2f);
 
         if (doorGhost != null)

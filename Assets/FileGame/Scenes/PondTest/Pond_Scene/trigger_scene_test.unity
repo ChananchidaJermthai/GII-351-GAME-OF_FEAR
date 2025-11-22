@@ -1992,6 +1992,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoorLookScare
   playerCamera: {fileID: 994263045}
+  makeGhostLookAtPlayer: 1
+  lookAtTurnSpeed: 100
   doorLookPoint: {fileID: 1595720797}
   lookAngle: 20
   maxCheckDistance: 50
