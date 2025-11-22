@@ -1,0 +1,48 @@
+Begin Object Class=/Script/Engine.PhysicsAsset Name="SK_Dead_Man_PhysicsAsset" ExportPath="/Script/Engine.PhysicsAsset'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset'"
+   Begin Object Class=/Script/Engine.PhysicsConstraintTemplate Name="PhysicsConstraintTemplate_0" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:PhysicsConstraintTemplate_0'"
+   End Object
+   Begin Object Class=/Script/Engine.PhysicsConstraintTemplate Name="PhysicsConstraintTemplate_1" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:PhysicsConstraintTemplate_1'"
+   End Object
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Script/Engine.SkeletalBodySetup Name="SkeletalBodySetup_0" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_0'"
+   End Object
+   Begin Object Class=/Script/Engine.SkeletalBodySetup Name="SkeletalBodySetup_1" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_1'"
+   End Object
+   Begin Object Class=/Script/Engine.SkeletalBodySetup Name="SkeletalBodySetup_2" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_2'"
+   End Object
+   Begin Object Name="PhysicsConstraintTemplate_0" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:PhysicsConstraintTemplate_0'"
+      DefaultInstance=(JointName="CATRigHub001Bone001Bone001Bone001Bone001",ConstraintBone1="CATRigHub001Bone001Bone001Bone001Bone001",ConstraintBone2="CATRigHub001Bone001Bone001Bone001",Pos2=(X=48.317833,Y=0.000000,Z=0.000000),PriAxis2=(X=1.000000,Y=0.000000,Z=0.000000),SecAxis2=(X=0.000000,Y=1.000000,Z=-0.000000),ProfileInstance=(ConeLimit=(Swing1Motion=ACM_Limited,Swing2Motion=ACM_Limited),TwistLimit=(TwistMotion=ACM_Limited)))
+   End Object
+   Begin Object Name="PhysicsConstraintTemplate_1" ExportPath="/Script/Engine.PhysicsConstraintTemplate'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:PhysicsConstraintTemplate_1'"
+      DefaultInstance=(JointName="CATRigHub001Bone001Bone001Bone001",ConstraintBone1="CATRigHub001Bone001Bone001Bone001",ConstraintBone2="CATRigHub001Bone001Bone001",Pos2=(X=5.164044,Y=5.727182,Z=0.000002),PriAxis2=(X=1.000000,Y=0.000000,Z=-0.000000))
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="SkeletalBodySetup_0" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_0'"
+      AggGeom=(SphylElems=((Center=(X=26.027422,Y=-0.387081,Z=-0.021767),Rotation=(Pitch=0.000000,Yaw=90.177498,Roll=-89.936676),Radius=9.497167,Length=26.680124)))
+      BoneName="CATRigHub001Bone001Bone001Bone001"
+      CollisionTraceFlag=CTF_UseSimpleAsComplex
+   End Object
+   Begin Object Name="SkeletalBodySetup_1" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_1'"
+      AggGeom=(SphylElems=((Center=(X=13.640182,Y=-0.244021,Z=0.007990),Rotation=(Pitch=0.000000,Yaw=91.016319,Roll=-89.875862),Radius=9.428288,Length=13.356698)))
+      BoneName="CATRigHub001Bone001Bone001Bone001Bone001"
+      CollisionTraceFlag=CTF_UseSimpleAsComplex
+   End Object
+   Begin Object Name="SkeletalBodySetup_2" ExportPath="/Script/Engine.SkeletalBodySetup'/Game/Horror_Props/Mesh/SK_Dead_Man_PhysicsAsset.SK_Dead_Man_PhysicsAsset:SkeletalBodySetup_2'"
+      AggGeom=(SphylElems=((Center=(X=2.424869,Y=0.174000,Z=-0.000002),Rotation=(Pitch=0.000000,Yaw=87.386078,Roll=-89.999985),Radius=5.000000,Length=6.750000)))
+      BoneName="CATRigHub001Bone001Bone001"
+      CollisionTraceFlag=CTF_UseSimpleAsComplex
+   End Object
+   PreviewSkeletalMesh="/Game/Horror_Props/Mesh/SK_Dead_Man.SK_Dead_Man"
+   BoundsBodies(0)=0
+   BoundsBodies(1)=1
+   BoundsBodies(2)=2
+   SkeletalBodySetups(0)="/Script/Engine.SkeletalBodySetup'SkeletalBodySetup_0'"
+   SkeletalBodySetups(1)="/Script/Engine.SkeletalBodySetup'SkeletalBodySetup_1'"
+   SkeletalBodySetups(2)="/Script/Engine.SkeletalBodySetup'SkeletalBodySetup_2'"
+   ConstraintSetup(0)="/Script/Engine.PhysicsConstraintTemplate'PhysicsConstraintTemplate_0'"
+   ConstraintSetup(1)="/Script/Engine.PhysicsConstraintTemplate'PhysicsConstraintTemplate_1'"
+   SolverSettings=(CullDistance=1.000000,bUseLinearJointSolver=False)
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+End Object
