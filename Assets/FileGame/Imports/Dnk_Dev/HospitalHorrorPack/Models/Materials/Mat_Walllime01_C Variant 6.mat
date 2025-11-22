@@ -7,9 +7,9 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Mat_Tile02 Variant 1 Variant
+  m_Name: Mat_Walllime01_C Variant 6
   m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
-  m_Parent: {fileID: 2100000, guid: 0678a98feb40fee419ae0f2a28f113dd, type: 2}
+  m_Parent: {fileID: 2100000, guid: 8a7f3e3f34602944ca9b0a89e0f7be30, type: 2}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _EMISSION
@@ -29,19 +29,19 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 7b98973f5058c8d489993665865ac405, type: 3}
-        m_Scale: {x: 0.64, y: 0.12}
+        m_Texture: {fileID: 2800000, guid: cae203f5c6ff2144a923288d09757339, type: 3}
+        m_Scale: {x: 0.42, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 7b98973f5058c8d489993665865ac405, type: 3}
-        m_Scale: {x: 0.64, y: 0.12}
+        m_Texture: {fileID: 2800000, guid: cae203f5c6ff2144a923288d09757339, type: 3}
+        m_Scale: {x: 0.42, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats: []
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &2599540615082605497
+--- !u!114 &7994613333116969259
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
