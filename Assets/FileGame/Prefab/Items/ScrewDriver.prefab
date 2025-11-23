@@ -82,6 +82,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6500406483913358007}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3945743109358103328}
   m_SourcePrefab: {fileID: 100100000, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
 --- !u!1 &7503388343284105927 stripped
 GameObject:
@@ -131,3 +134,21 @@ MonoBehaviour:
   onPicked:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3945743109358103328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7503388343284105927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 0
+  outlineColor: {r: 1, g: 0.9764706, b: 0, a: 1}
+  outlineWidth: 4
+  useDistanceCheck: 1
+  maxDistance: 10
+  targetTag: Player
