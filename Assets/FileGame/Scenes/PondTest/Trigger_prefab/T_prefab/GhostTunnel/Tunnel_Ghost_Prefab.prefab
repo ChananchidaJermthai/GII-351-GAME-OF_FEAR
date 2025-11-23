@@ -161,15 +161,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.2287178
+      value: 15.088963
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 6.3616695
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -6.64
+      value: -0.44873047
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalRotation.w
@@ -177,7 +177,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalRotation.y
@@ -185,7 +185,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -218,9 +218,6 @@ PrefabInstance:
       insertIndex: 0
       addedObject: {fileID: 3453210816157621783}
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 2267823825578902416, guid: d34564dd40b013f408adeef294fb3293, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 8173932162871937013}
     - targetCorrespondingSourceObject: {fileID: 2304097471431964222, guid: d34564dd40b013f408adeef294fb3293, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2714139359507160004}
@@ -230,30 +227,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4495835591235058604, guid: d34564dd40b013f408adeef294fb3293, type: 3}
   m_PrefabInstance: {fileID: 8518870176820368602}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &7584614326372161354 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2267823825578902416, guid: d34564dd40b013f408adeef294fb3293, type: 3}
-  m_PrefabInstance: {fileID: 8518870176820368602}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &8173932162871937013
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7584614326372161354}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f0b2b7dff67b29f49b8c382c3b05ac69, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostCrawlerTunnel
-  startPoint: {fileID: 0}
-  endPoint: {fileID: 0}
-  speed: 5
-  audioSource: {fileID: 0}
-  metalHitSFX: {fileID: 0}
-  crawlLoopSFX: {fileID: 0}
-  autoFaceDirection: 1
 --- !u!1 &7620327218612265700 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2304097471431964222, guid: d34564dd40b013f408adeef294fb3293, type: 3}

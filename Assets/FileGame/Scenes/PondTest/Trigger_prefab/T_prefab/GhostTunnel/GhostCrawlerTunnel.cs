@@ -2,37 +2,53 @@
 
 public class GhostCrawlerTunnel : MonoBehaviour
 {
-    [Header("Path")]
-    public Transform startPoint;
-    public Transform endPoint;
+    [Header("Path (ใช้ทีละหลายจุด)")]
+    public Transform[] pathPoints;      // ใส่จุดเรียงตามทางท่อ
     public float speed = 5f;
 
+    [Header("Visual")]
+    [Tooltip("ใส่ GameObject ที่เป็นโมเดลผี (มักจะเป็น child)")]
+    public GameObject ghostModel;
+
     [Header("Audio")]
-    public AudioSource audioSource;      // แนะนำให้แยก AudioSource ของผีไว้เลย
-    public AudioClip metalHitSFX;        // เสียงตอนทริกเกอร์ดัง "เหล็กกระแทก"
-    public AudioClip crawlLoopSFX;       // เสียงผีคลานยาว ๆ (loop)
+    public AudioSource audioSource;
+    public AudioClip metalHitSFX;
+    public AudioClip crawlLoopSFX;
 
     [Header("Option")]
     public bool autoFaceDirection = true;
 
     private bool isChasing = false;
+    private int currentIndex = 0;
     private Vector3 moveDir;
+    private Collider ghostCollider;
+
+    private void Awake()
+    {
+        ghostCollider = GetComponent<Collider>();
+        HideGhost();
+    }
 
     public void StartChase()
     {
-        // วาร์ปไปที่จุดเริ่ม
-        if (startPoint != null)
-            transform.position = startPoint.position;
+        if (pathPoints == null || pathPoints.Length < 2)
+        {
+            Debug.LogWarning("GhostCrawlerTunnel: ต้องมี pathPoints อย่างน้อย 2 จุด");
+            return;
+        }
 
-        // หาทิศไปจุด B
-        if (startPoint != null && endPoint != null)
-            moveDir = (endPoint.position - startPoint.position).normalized;
-        else
-            moveDir = transform.forward;
+        // เริ่มที่จุดแรก
+        currentIndex = 0;
 
+        transform.position = pathPoints[currentIndex].position;
+
+        // คำนวณทิศทางไปจุดถัดไป
+        UpdateMoveDirection();
+
+        ShowGhost();
         isChasing = true;
 
-        // ===== เล่นเสียงเหล็กกระแทกตอน Trigger =====
+        // เสียงเหล็กดัง
         if (audioSource != null && metalHitSFX != null)
         {
             audioSource.Stop();
@@ -40,8 +56,7 @@ public class GhostCrawlerTunnel : MonoBehaviour
             audioSource.PlayOneShot(metalHitSFX);
         }
 
-        // ===== เริ่มเล่นเสียงคลานเป็น Loop =====
-        // หน่วง 0.1 วิ เพื่อไม่ให้ทับกับเสียงเหล็ก
+        // เสียงคลาน loop
         if (audioSource != null && crawlLoopSFX != null)
         {
             audioSource.clip = crawlLoopSFX;
@@ -53,20 +68,38 @@ public class GhostCrawlerTunnel : MonoBehaviour
     private void Update()
     {
         if (!isChasing) return;
+        if (pathPoints == null || pathPoints.Length == 0) return;
 
+        // เดินไปยังจุดเป้าหมายปัจจุบัน
+        Transform targetPoint = pathPoints[currentIndex];
+        Vector3 toTarget = targetPoint.position - transform.position;
+
+        // ถ้าใกล้พอแล้ว → ข้ามไปจุดถัดไป
+        if (toTarget.magnitude <= 0.05f)
+        {
+            if (currentIndex < pathPoints.Length - 1)
+            {
+                currentIndex++;
+                UpdateMoveDirection();
+                targetPoint = pathPoints[currentIndex];
+                toTarget = targetPoint.position - transform.position;
+            }
+            else
+            {
+                // ถึงจุดสุดท้ายแล้ว
+                StopChase();
+                return;
+            }
+        }
+
+        // เคลื่อนที่
+        moveDir = toTarget.normalized;
         transform.position += moveDir * speed * Time.deltaTime;
 
+        // หันหน้าไปทางเดิน
         if (autoFaceDirection && moveDir != Vector3.zero)
-            transform.forward = moveDir;
-
-        // ถึงจุด B → หยุดไล่และปิดเสียง
-        if (endPoint != null)
         {
-            Vector3 toEnd = endPoint.position - transform.position;
-            if (Vector3.Dot(toEnd, moveDir) <= 0f)
-            {
-                StopChase();
-            }
+            transform.forward = moveDir;
         }
     }
 
@@ -75,25 +108,53 @@ public class GhostCrawlerTunnel : MonoBehaviour
         if (!isChasing) return;
         if (!other.CompareTag("Player")) return;
 
-        // === ตรงนี้ให้เธอใส่ระบบโดนผีเอง ===
-        Debug.Log("TODO: Player hit by tunnel crawler");
+        // TODO: ตรงนี้คือช่วงผู้เล่นโดนผีคลานชน
+        Debug.Log("TODO: Player hit by tunnel crawler (ใส่ระบบตาย/โดนโจมตีที่นี่)");
 
         StopChase();
     }
 
-    // ฟังก์ชันหยุดไล่ผี
     private void StopChase()
     {
         isChasing = false;
 
-        // ปิดเสียงคลาน
         if (audioSource != null)
         {
             audioSource.Stop();
             audioSource.loop = false;
         }
 
-        // ซ่อนผี
-        gameObject.SetActive(false);
+        HideGhost();
+    }
+
+    private void UpdateMoveDirection()
+    {
+        if (currentIndex < pathPoints.Length - 1)
+        {
+            Vector3 dir = pathPoints[currentIndex + 1].position - pathPoints[currentIndex].position;
+            moveDir = dir.normalized;
+        }
+        else
+        {
+            moveDir = transform.forward;
+        }
+    }
+
+    private void HideGhost()
+    {
+        if (ghostModel != null)
+            ghostModel.SetActive(false);
+
+        if (ghostCollider != null)
+            ghostCollider.enabled = false;
+    }
+
+    private void ShowGhost()
+    {
+        if (ghostModel != null)
+            ghostModel.SetActive(true);
+
+        if (ghostCollider != null)
+            ghostCollider.enabled = true;
     }
 }
