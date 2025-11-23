@@ -15,6 +15,9 @@ public class DoorLookScare : MonoBehaviour
     public float lookAngle = 20f;          // มองเข้าใกล้มุมนี้ = ถือว่ามองประตู
     public float maxCheckDistance = 50f;   // ระยะสูงสุดที่ยังเช็ค
 
+    public SanityApplier sanityApplier;
+    [SerializeField] float damage = 10f;
+
     [Header("Ghost Head")]
     public GameObject doorGhost;           // ผีที่โผล่หัว
     public Transform doorGhostSpawnPoint;  // จุดโผล่หัว
@@ -34,6 +37,10 @@ public class DoorLookScare : MonoBehaviour
     public bool isActive = false;          // ถูกเปิดให้ทำงานจาก Trigger หรือยัง
     public bool hasPlayed = false;         // เล่นไปแล้วหรือยัง (ไม่เล่นซ้ำ)
 
+    private void Awake()
+    {
+        sanityApplier = FindAnyObjectByType<SanityApplier>();
+    }
     private void Start()
     {
         if (playerCamera == null && Camera.main != null)
@@ -109,6 +116,7 @@ public class DoorLookScare : MonoBehaviour
             doorGhost.transform.position = doorGhostSpawnPoint.position;
             doorGhost.transform.rotation = doorGhostSpawnPoint.rotation;
             doorGhost.SetActive(true);
+            sanityApplier.AddSanity(damage);
         }
 
         if (doorGhostAnimator != null && !string.IsNullOrEmpty(appearTrigger))

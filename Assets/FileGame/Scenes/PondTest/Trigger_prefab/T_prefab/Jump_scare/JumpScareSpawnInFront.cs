@@ -13,6 +13,10 @@ public class JumpScareSpawnInFront : MonoBehaviour
     public float forwardOffset = 0f;
     public float autoDestroyAfter = 3f;
 
+    //public GameObject player;
+    public SanityApplier sanityApplier;
+    [SerializeField] float damage = 10f;
+
     [Header("Animation")]
     public string scareTriggerName = "Scare";
 
@@ -32,6 +36,7 @@ public class JumpScareSpawnInFront : MonoBehaviour
 
     private void Awake()
     {
+        sanityApplier = FindAnyObjectByType<SanityApplier>();
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
@@ -73,6 +78,8 @@ public class JumpScareSpawnInFront : MonoBehaviour
 
         // 4) เล่นเสียง jumpscare 🔊
         PlayScareSound();
+        sanityApplier.AddSanity(damage);
+
 
         // 5) เอฟเฟกต์สว่างขึ้น
         if (colorAdjust != null)

@@ -18,6 +18,9 @@ public class DoorLookScarePowerCut : MonoBehaviour
     public string ghostAppearTrigger = "Appear";
     public string ghostDisappearTrigger = "Disappear";
 
+    public SanityApplier sanityApplier;
+    [SerializeField] float damage = 10f;
+
     [Header("Sound")]
     public AudioSource sfxSource;           // AudioSource สำหรับ SFX
     public AudioClip scareClip;             // เสียงเร้าอารมณ์ตอนเจอผี
@@ -57,6 +60,7 @@ public class DoorLookScarePowerCut : MonoBehaviour
 
     private void Start()
     {
+        sanityApplier = FindAnyObjectByType<SanityApplier>();
         if (playerCamera == null && Camera.main != null)
             playerCamera = Camera.main.transform;
 
@@ -150,6 +154,7 @@ public class DoorLookScarePowerCut : MonoBehaviour
 
         // 3) เปิดไฟ + เสียงหลอก + กล้องกระตุก
         TurnOnEnvironmentLights();
+        sanityApplier.AddSanity(damage);
 
         if (sfxSource && scareClip)
         {

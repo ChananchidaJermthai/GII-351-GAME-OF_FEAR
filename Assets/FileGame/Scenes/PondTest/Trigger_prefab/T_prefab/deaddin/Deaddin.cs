@@ -11,6 +11,9 @@ public class Deaddin : MonoBehaviour
     [Tooltip("ชื่อ parameter ที่ใช้เริ่มอนิเมชั่นตาย")]
     public string deathParam = "isDying";
 
+    public SanityApplier sanityApplier;
+    [SerializeField] float damage;
+
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip moveSFX;
@@ -24,6 +27,10 @@ public class Deaddin : MonoBehaviour
     public bool triggerOnce = true;
     private bool hasTriggered = false;
 
+    private void Awake()
+    {
+        sanityApplier = FindAnyObjectByType<SanityApplier>();
+    }
     private void Start()
     {
         // เริ่มต้นใน Idle
@@ -56,6 +63,7 @@ public class Deaddin : MonoBehaviour
         {
             audioSource.PlayOneShot(moveSFX);
         }
+        sanityApplier.AddSanity(damage);
 
         // 2) รอจนถึงช่วงเสียงตาย
         yield return new WaitForSeconds(delayBeforeDeathSFX);
