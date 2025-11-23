@@ -1,0 +1,133 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &7268820932897849238
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -32.269962
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -2.555829
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 109.76524
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 8aea555e8d93dac439bb88d9baf4365e, type: 2}
+    - target: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_Name
+      value: ScrewDriver
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3571246731056154674}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6500406483913358007}
+  m_SourcePrefab: {fileID: 100100000, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+--- !u!1 &7503388343284105927 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+  m_PrefabInstance: {fileID: 7268820932897849238}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &3571246731056154674
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7503388343284105927}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -8967888735301361715, guid: 0ab1ae6eb90b48a41bbb3d8349278d7b, type: 3}
+--- !u!114 &6500406483913358007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7503388343284105927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64441cd54529fee4b9e07fd2e9f88c37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemPickup3D
+  itemId: ScrewDriver
+  amount: 1
+  destroyOnPickup: 1
+  pickupVfxPrefab: {fileID: 0}
+  pickupSfx: {fileID: 8300000, guid: bfb9ed0f7498f3b409b0700b63e2ed8d, type: 3}
+  sfxVolume: 0.454
+  onPicked:
+    m_PersistentCalls:
+      m_Calls: []

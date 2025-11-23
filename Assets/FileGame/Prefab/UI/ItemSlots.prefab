@@ -356,7 +356,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6625435678443045684}
-  - component: {fileID: 5046537412556707993}
   - component: {fileID: 3636884213845888772}
   m_Layer: 5
   m_Name: ItemSlots
@@ -387,21 +386,6 @@ RectTransform:
   m_AnchoredPosition: {x: -2.869, y: -110.7956}
   m_SizeDelta: {x: 200, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &5046537412556707993
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9199257626039836908}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ea67473c0557fd74dbfd073d11e718d1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ItemUIEntry
-  iconImage: {fileID: 4798983355362185266}
-  nameText: {fileID: 8232098185996661795}
-  countText: {fileID: 2166087117320298384}
 --- !u!114 &3636884213845888772
 MonoBehaviour:
   m_ObjectHideFlags: 0
