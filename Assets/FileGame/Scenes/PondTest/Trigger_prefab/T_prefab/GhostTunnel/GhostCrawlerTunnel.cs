@@ -108,8 +108,7 @@ public class GhostCrawlerTunnel : MonoBehaviour
         if (!isChasing) return;
         if (!other.CompareTag("Player")) return;
 
-        // TODO: ตรงนี้คือช่วงผู้เล่นโดนผีคลานชน
-        Debug.Log("TODO: Player hit by tunnel crawler (ใส่ระบบตาย/โดนโจมตีที่นี่)");
+        JumpScareSpawnInFront.Instance.PlayScare();
 
         StopChase();
     }
