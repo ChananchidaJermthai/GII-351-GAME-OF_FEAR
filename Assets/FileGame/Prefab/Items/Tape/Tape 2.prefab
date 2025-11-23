@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 6896346761058005885}
   - component: {fileID: 3417505050749381093}
   - component: {fileID: 5926024853036787157}
+  - component: {fileID: 7969140778973028088}
   m_Layer: 8
   m_Name: Tape 2
   m_TagString: Untagged
@@ -133,3 +134,21 @@ MonoBehaviour:
   onPicked:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &7969140778973028088
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791244627634998782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 0
+  outlineColor: {r: 1, g: 0.9606118, b: 0, a: 1}
+  outlineWidth: 4
+  useDistanceCheck: 1
+  maxDistance: 5
+  targetTag: Player
