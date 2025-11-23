@@ -1,58 +1,127 @@
 ﻿using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 public class JumpScareSpawnInFront : MonoBehaviour
 {
+    public static JumpScareSpawnInFront Instance;
+
     [Header("Spawn Settings")]
-    public Transform jumpScareRoot;     // Empty ที่อยู่หน้ากล้อง
-    public GameObject monsterPrefab;    // Prefab ผี
-    public bool useOnce = true;         // ใช้ครั้งเดียวไหม
-    public float autoDestroyMonsterAfter = 3f; // ให้ผีอยู่กี่วินาที (0 = ไม่ลบ)
+    public Transform jumpScareRoot;
+    public GameObject monsterPrefab;
+    public float heightOffset = -1.5f;
+    public float forwardOffset = 0f;
+    public float autoDestroyAfter = 3f;
 
-    [Header("Animation (optional)")]
-    public string scareTriggerName = "Scare"; // ชื่อ Trigger ใน Animator
+    [Header("Animation")]
+    public string scareTriggerName = "Scare";
 
-    private bool hasTriggered = false;
+    [Header("Sound Settings")]
+    public AudioSource scareAudioSource;      // ใช้เสียงจาก manager
+    public AudioClip scareClip;               // คลิปเสียง jumpscare
+    public float scareVolume = 1f;
+
+    [Header("Lighting Boost")]
+    public Volume globalVolume;
+    public float brighterIntensity = 1.5f;
+    public float effectDuration = 1.0f;
+
+    private ColorAdjustments colorAdjust;
+    private float originalIntensity;
     private GameObject spawnedMonster;
 
-    private void OnTriggerEnter(Collider other)
+    private void Awake()
     {
-        if (hasTriggered && useOnce) return;
-        if (!other.CompareTag("Player")) return;  // ให้ Player มี Tag = "Player"
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
 
-        hasTriggered = true;
+        if (globalVolume != null)
+        {
+            globalVolume.profile.TryGet(out colorAdjust);
+            if (colorAdjust != null)
+                originalIntensity = colorAdjust.postExposure.value;
+        }
+    }
 
-        // 1) เช็กว่ามี root และ prefab ครบไหม
+    public void PlayScare()
+    {
         if (jumpScareRoot == null || monsterPrefab == null)
         {
-            Debug.LogWarning("JumpScare: ยังไม่ได้เซ็ต jumpScareRoot หรือ monsterPrefab");
+            Debug.LogWarning("JumpScareSpawnInFront: settings missing!");
             return;
         }
 
-        // 2) สร้างผีที่หน้ากล้อง (เป็นลูกของ root)
+        // 1) spawn ตำแหน่ง
+        Vector3 spawnPos =
+            jumpScareRoot.position +
+            jumpScareRoot.up * heightOffset +
+            jumpScareRoot.forward * forwardOffset;
+
+        Quaternion spawnRot = jumpScareRoot.rotation;
+
+        // 2) spawn ผี
         spawnedMonster = Instantiate(
             monsterPrefab,
-            jumpScareRoot.position,
-            jumpScareRoot.rotation,
-            jumpScareRoot   // ทำเป็นลูกของ root จะได้ตามกล้อง
+            spawnPos,
+            spawnRot,
+            jumpScareRoot
         );
 
-        // 3) สั่งเล่นอนิเมชั่น (ถ้ามี)
+        // 3) animation
         Animator anim = spawnedMonster.GetComponent<Animator>();
-        if (anim != null && !string.IsNullOrEmpty(scareTriggerName))
+        if (anim != null) anim.SetTrigger(scareTriggerName);
+
+        // 4) เล่นเสียง jumpscare 🔊
+        PlayScareSound();
+
+        // 5) เอฟเฟกต์สว่างขึ้น
+        if (colorAdjust != null)
         {
-            anim.SetTrigger(scareTriggerName);
+            StopAllCoroutines();
+            StartCoroutine(LightBoostRoutine());
         }
 
-        // 4) ลบผีอัตโนมัติหลังจาก X วินาที (ถ้ากำหนด)
-        if (autoDestroyMonsterAfter > 0f)
+        // 6) ลบผีหลัง X วินาที
+        if (autoDestroyAfter > 0f)
+            Destroy(spawnedMonster, autoDestroyAfter);
+    }
+
+    private void PlayScareSound()
+    {
+        // PRIORITY 1 = ใช้ scareAudioSource จาก Manager
+        if (scareAudioSource != null && scareClip != null)
         {
-            Destroy(spawnedMonster, autoDestroyMonsterAfter);
+            scareAudioSource.volume = scareVolume;
+            scareAudioSource.PlayOneShot(scareClip);
+            return;
         }
 
-        // 5) ถ้า Trigger ใช้ครั้งเดียว ให้ทำลายตัวเอง
-        if (useOnce)
+        // PRIORITY 2 = ถ้า Manager ไม่มีเสียง → ใช้เสียงจาก prefab
+        AudioSource prefabAudio = spawnedMonster.GetComponent<AudioSource>();
+        if (prefabAudio != null)
         {
-            Destroy(gameObject, 1f);
+            prefabAudio.volume = scareVolume;
+            if (scareClip != null)
+                prefabAudio.PlayOneShot(scareClip);
+            else
+                prefabAudio.Play(); // ถ้าใน prefab มี clip อยู่แล้ว
+        }
+    }
+
+    private System.Collections.IEnumerator LightBoostRoutine()
+    {
+        colorAdjust.postExposure.value = brighterIntensity;
+
+        yield return new WaitForSeconds(effectDuration);
+
+        colorAdjust.postExposure.value = originalIntensity;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            JumpScareSpawnInFront.Instance.PlayScare();
         }
     }
 }
