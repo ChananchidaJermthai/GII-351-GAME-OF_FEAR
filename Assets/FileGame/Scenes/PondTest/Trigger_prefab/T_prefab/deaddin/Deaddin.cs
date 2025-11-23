@@ -12,7 +12,7 @@ public class Deaddin : MonoBehaviour
     public string deathParam = "isDying";
 
     public SanityApplier sanityApplier;
-    [SerializeField] float damage;
+    [SerializeField] float damage = 5f;
 
     [Header("Audio")]
     public AudioSource audioSource;

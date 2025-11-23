@@ -9,7 +9,10 @@ public class GhostCrawlerTunnel : MonoBehaviour
     [Header("Visual")]
     [Tooltip("ใส่ GameObject ที่เป็นโมเดลผี (มักจะเป็น child)")]
     public GameObject ghostModel;
-
+    /*
+    public SanityApplier sanityApplier;
+    [SerializeField] float damage = 10f;
+    */
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip metalHitSFX;
@@ -25,6 +28,7 @@ public class GhostCrawlerTunnel : MonoBehaviour
 
     private void Awake()
     {
+        //sanityApplier = FindAnyObjectByType<SanityApplier>();
         ghostCollider = GetComponent<Collider>();
         HideGhost();
     }
