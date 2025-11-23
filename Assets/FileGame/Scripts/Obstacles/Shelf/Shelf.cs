@@ -61,7 +61,14 @@ public class Shelf : MonoBehaviour
     public AudioClip openSfx;
     public AudioClip closeSfx;
     public AudioClip lockedSfx;
+
+    [Tooltip("เสียงล็อกตัวที่ 2 (จะเล่นตามหลังเสียงแรก)")]
+    public AudioClip lockedSfx2;
+
     [Range(0f, 1f)] public float sfxVolume = 1f;
+
+    [Tooltip("ดีเลย์ระหว่าง lockedSfx -> lockedSfx2 (วินาที)")]
+    [Min(0f)] public float lockedSfx2Delay = 0.15f;
 
     [Header("UI Feedback (optional)")]
     [Tooltip("โยนคอมโพเนนต์ UI อะไรก็ได้ที่มี ShowCenter(string,float) หรือ Show(string) หรือ SetText(string)")]
@@ -166,20 +173,36 @@ public class Shelf : MonoBehaviour
 
     void ShowMsg(string msg)
     {
-        if (!messageUI) { if (debugLogs) Debug.Log(msg); return; }
+        if (!messageUI)
+        {
+            if (debugLogs) Debug.Log(msg);
+            return;
+        }
 
         // ใช้รีเฟลกชันเพื่อรองรับหลายชื่อเมธอดของ UI:
         // 1) ShowCenter(string,float)  2) Show(string)  3) SetText(string)
         var uiType = messageUI.GetType();
 
         var m = uiType.GetMethod("ShowCenter", new Type[] { typeof(string), typeof(float) });
-        if (m != null) { m.Invoke(messageUI, new object[] { msg, 1.2f }); return; }
+        if (m != null)
+        {
+            m.Invoke(messageUI, new object[] { msg, 1.2f });
+            return;
+        }
 
         m = uiType.GetMethod("Show", new Type[] { typeof(string) });
-        if (m != null) { m.Invoke(messageUI, new object[] { msg }); return; }
+        if (m != null)
+        {
+            m.Invoke(messageUI, new object[] { msg });
+            return;
+        }
 
         m = uiType.GetMethod("SetText", new Type[] { typeof(string) });
-        if (m != null) { m.Invoke(messageUI, new object[] { msg }); return; }
+        if (m != null)
+        {
+            m.Invoke(messageUI, new object[] { msg });
+            return;
+        }
 
         if (debugLogs) Debug.Log(msg);
     }
@@ -209,11 +232,19 @@ public class Shelf : MonoBehaviour
             // เช็คล็อก
             if (isLocked)
             {
-                if (!_playerInv && playerGO) _playerInv = playerGO.GetComponentInParent<InventoryLite>();
+                if (!_playerInv && playerGO)
+                    _playerInv = playerGO.GetComponentInParent<InventoryLite>();
 
                 if (!_playerInv || _playerInv.GetCount(requiredKeyId) <= 0)
                 {
-                    if (lockedSfx) audioSource.PlayOneShot(lockedSfx, sfxVolume);
+                    // เสียงล็อกตัวแรก
+                    if (lockedSfx)
+                        audioSource.PlayOneShot(lockedSfx, sfxVolume);
+
+                    // เสียงล็อกตัวที่สอง (ดีเลย์ตาม lockedSfx2Delay)
+                    if (lockedSfx2)
+                        StartCoroutine(PlayLockedSecond());
+
                     onLockedTry?.Invoke();
                     ShowMsg("It's locked. You need a key.");
                     if (debugLogs) Debug.Log("[Shelf] Locked: no key.");
@@ -232,7 +263,8 @@ public class Shelf : MonoBehaviour
         }
         else
         {
-            if (allowToggle) CloseNow();
+            if (allowToggle)
+                CloseNow();
         }
     }
 
@@ -281,6 +313,15 @@ public class Shelf : MonoBehaviour
         _anim = null;
     }
 
+    System.Collections.IEnumerator PlayLockedSecond()
+    {
+        if (lockedSfx2Delay > 0f)
+            yield return new WaitForSeconds(lockedSfx2Delay);
+
+        if (lockedSfx2)
+            audioSource.PlayOneShot(lockedSfx2, sfxVolume);
+    }
+
     void ApplyProgressAll(float k01)
     {
         foreach (var d in doors)
@@ -325,8 +366,10 @@ public class Shelf : MonoBehaviour
         }
         if (d.invert) axisVec = -axisVec;
 
-        Gizmos.color = (d.motion == MotionType.Rotation) ? new Color(1f, 0.85f, 0.2f, 0.9f)
-                                                         : new Color(0.2f, 0.85f, 1f, 0.9f);
+        Gizmos.color = (d.motion == MotionType.Rotation)
+            ? new Color(1f, 0.85f, 0.2f, 0.9f)
+            : new Color(0.2f, 0.85f, 1f, 0.9f);
+
         var p = d.door.position;
         Gizmos.DrawLine(p, p + axisVec * 0.25f);
         Gizmos.DrawSphere(p + axisVec * 0.25f, 0.01f);
@@ -342,5 +385,4 @@ public class Shelf : MonoBehaviour
      {
          Debug.Log($"[UI] {msg} ({seconds:0.##}s)");
      }
- }
-*/
+ }*/

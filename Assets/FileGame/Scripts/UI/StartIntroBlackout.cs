@@ -31,6 +31,7 @@ public class StartIntroBlackout : MonoBehaviour
 
     void Start()
     {
+        Cursor.visible = false;
         // ล็อกผู้เล่น
         SetPlayerLock(true);
 
