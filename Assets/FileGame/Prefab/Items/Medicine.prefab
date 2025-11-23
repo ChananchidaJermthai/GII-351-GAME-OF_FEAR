@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3206671145578964642}
   - component: {fileID: 2730086329951706659}
   - component: {fileID: 3007232208389753265}
+  - component: {fileID: 3661359443769276829}
   m_Layer: 8
   m_Name: Medicine
   m_TagString: Untagged
@@ -134,3 +135,21 @@ MonoBehaviour:
   onPicked:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3661359443769276829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6673037854143639938}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 0
+  outlineColor: {r: 1, g: 0.9764706, b: 0, a: 1}
+  outlineWidth: 4
+  useDistanceCheck: 1
+  maxDistance: 10
+  targetTag: Player
