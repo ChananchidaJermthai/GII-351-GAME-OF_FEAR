@@ -352,7 +352,7 @@ MonoBehaviour:
   outlineColor: {r: 1, g: 0.97662324, b: 0, a: 1}
   outlineWidth: 4
   useDistanceCheck: 1
-  maxDistance: 10
+  maxDistance: 5
   targetTag: Player
 --- !u!1 &5101908265859005098
 GameObject:
