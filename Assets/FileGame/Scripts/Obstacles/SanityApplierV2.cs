@@ -1,11 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-/// Sanity Applier (เสถียรกว่าเดิม)
-// - รับ "หน่วยต่อวินาที" แล้วคูณ dt ภายใน (AddPerSecond)
-// - โหมด Auto: ตรวจเจอ Sanity01 (0..1) หรือคู่ field (sanity/sanityMax)
-// - รองรับ SetSanity(float), UpdateSanityUI()
-// - มี Smoothing กันเด้ง + Debug Overlay
+/// Sanity Applier V2 - Optimized & Safe
 [DisallowMultipleComponent]
 public class SanityApplierV2 : MonoBehaviour
 {
@@ -17,7 +13,7 @@ public class SanityApplierV2 : MonoBehaviour
     public TargetMode mode = TargetMode.Auto;
 
     [Header("Apply Settings")]
-    [Tooltip("เปิดไว้ถ้า caller ส่งค่า 'ต่อวินาที' มา (เช่น +5f/s)")]
+    [Tooltip("เปิดไว้ถ้า caller ส่งค่า 'ต่อวินาที' เช่น +5f/s")]
     public bool inputIsPerSecond = true;
     [Tooltip("ความแรงรวม (global multiplier)")]
     public float gain = 1f;
@@ -26,24 +22,24 @@ public class SanityApplierV2 : MonoBehaviour
 
     [Header("Clamp (ใช้ตอน AbsoluteFields)")]
     public float minSanity = 0f;
-    public float maxSanityFallback = 100f; // ถ้าหา max field ไม่เจอ
+    public float maxSanityFallback = 100f;
 
-    [Header("Debug")]
+    [Header("Debug Overlay")]
     public bool debugLogs = false;
     public bool showOverlay = false;
     public Text overlayText;
 
-    // ===== reflection cache =====
+    // ===== Reflection cache =====
     System.Type _t;
     System.Reflection.FieldInfo _fSanity, _fMax;
     System.Reflection.PropertyInfo _pSanity01;
     System.Reflection.MethodInfo _mSetSanity, _mUpdateUI;
 
-    // runtime state
-    float _pendingDelta;   // ค่าที่สะสมจาก Add / AddPerSecond
-    float _curVal;         // ค่าปัจจุบัน (absolute หรือ normalized แล้วแต่โหมด)
-    float _curMax = 100f;  // absolute max
-    bool _isNormalized;
+    // runtime
+    float _pendingDelta = 0f;
+    float _curVal = 0f;
+    float _curMax = 100f;
+    bool _isNormalized = false;
 
     void Awake()
     {
@@ -56,70 +52,73 @@ public class SanityApplierV2 : MonoBehaviour
     void Update()
     {
         float dt = Mathf.Max(Time.unscaledDeltaTime, 0f);
-        float apply = _pendingDelta;
-
-        if (inputIsPerSecond)
-            apply *= dt;
-
-        if (Mathf.Abs(apply) > 0f)
+        if (Mathf.Abs(_pendingDelta) > 0f)
         {
+            float apply = inputIsPerSecond ? _pendingDelta * dt : _pendingDelta;
             ApplyDeltaInternal(apply * gain, dt);
             _pendingDelta = 0f;
         }
-
         UpdateOverlay(false);
     }
 
-    // ====== Public API ======
-    public void Add(float delta) { _pendingDelta += delta; }
-    public void AddPerSecond(float perSecond) { _pendingDelta += perSecond; } // per-second input
+    // ===== Public API =====
+    public void Add(float delta) => _pendingDelta += delta;
+    public void AddPerSecond(float perSecond) => _pendingDelta += perSecond;
+    public void BeginSession() => _pendingDelta = 0f;
+    public void EndSession() { }
+    public void SetSanity(float value)
+    {
+        _pendingDelta = 0f;
+        if (_isNormalized) WriteNormalized(value);
+        else WriteAbsolute(value);
+    }
 
-    public void BeginSession() { _pendingDelta = 0f; }
-    public void EndSession() { /* ไม่ดึงค่าคืน */ }
-
-    // ====== Core ======
+    // ===== Core =====
     void Bind()
     {
-        if (!player) { if (debugLogs) Debug.LogWarning("[SanityApplierV2] No player bound"); return; }
+        if (!player)
+        {
+            if (debugLogs) Debug.LogWarning("[SanityApplierV2] No player bound");
+            return;
+        }
+
         _t = player.GetType();
 
-        // ลองหา Property Sanity01 ก่อน (normalized)
         _pSanity01 = _t.GetProperty("Sanity01",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
 
-        // หา field แบบ absolute
-        _fSanity = _t.GetField("_sanity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                ?? _t.GetField("sanity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        _fMax = _t.GetField("sanityMax", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
-                ?? _t.GetField("maxSanity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        _fSanity = _t.GetField("_sanity",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            ?? _t.GetField("sanity",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
 
-        // method (ถ้ามี)
-        _mSetSanity = _t.GetMethod("SetSanity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        _mUpdateUI = _t.GetMethod("UpdateSanityUI", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        _fMax = _t.GetField("sanityMax",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            ?? _t.GetField("maxSanity",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
 
-        // ตัดสินโหมด
+        _mSetSanity = _t.GetMethod("SetSanity",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        _mUpdateUI = _t.GetMethod("UpdateSanityUI",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        // Auto detect mode
         if (mode == TargetMode.Auto)
         {
-            if (_pSanity01 != null)
-            {
-                mode = TargetMode.Normalized01;
-                _isNormalized = true;
-            }
-            else
-            {
-                mode = TargetMode.AbsoluteFields;
-                _isNormalized = false;
-            }
+            if (_pSanity01 != null) { mode = TargetMode.Normalized01; _isNormalized = true; }
+            else { mode = TargetMode.AbsoluteFields; _isNormalized = false; }
         }
         else _isNormalized = (mode == TargetMode.Normalized01);
 
         if (debugLogs)
-            Debug.Log($"[SanityApplierV2] Bound mode={mode}, has Sanity01? {(_pSanity01 != null)}, has fields? {(_fSanity != null)}/{(_fMax != null)}, has SetSanity? {(_mSetSanity != null)}", player);
+            Debug.Log($"[SanityApplierV2] Bound mode={mode}, Sanity01? {_pSanity01 != null}, Fields? {_fSanity != null}/{_fMax != null}, SetSanity? {_mSetSanity != null}", player);
     }
 
     void ReadCurrent()
     {
         if (!player) return;
+
         if (_isNormalized && _pSanity01 != null)
         {
             _curVal = Mathf.Clamp01((float)_pSanity01.GetValue(player, null));
@@ -128,13 +127,8 @@ public class SanityApplierV2 : MonoBehaviour
         else
         {
             float cur = 0f, max = maxSanityFallback;
-
-            if (_fSanity != null && _fSanity.FieldType == typeof(float))
-                cur = (float)_fSanity.GetValue(player);
-
-            if (_fMax != null && _fMax.FieldType == typeof(float))
-                max = (float)_fMax.GetValue(player);
-
+            if (_fSanity != null && _fSanity.FieldType == typeof(float)) cur = (float)_fSanity.GetValue(player);
+            if (_fMax != null && _fMax.FieldType == typeof(float)) max = (float)_fMax.GetValue(player);
             _curVal = Mathf.Clamp(cur, minSanity, max);
             _curMax = Mathf.Max(0.0001f, max);
         }
@@ -142,22 +136,20 @@ public class SanityApplierV2 : MonoBehaviour
 
     void ApplyDeltaInternal(float delta, float dt)
     {
-        // อ่านค่าใหม่ก่อน
+        if (Mathf.Approximately(delta, 0f)) return;
         ReadCurrent();
 
-        float target = _curVal + (_isNormalized ? delta : delta); // delta เดียวกัน (แหล่งส่งควบคุมสเกล)
         if (_isNormalized)
         {
-            target = Mathf.Clamp01(target);
-            float sm = 1f - Mathf.Exp(-smooth * dt);
+            float target = Mathf.Clamp01(_curVal + delta);
+            float sm = Mathf.Max(0.0001f, 1f - Mathf.Exp(-smooth * dt));
             float next = Mathf.Lerp(_curVal, target, sm);
             WriteNormalized(next);
         }
         else
         {
-            float max = Mathf.Max(0.0001f, _curMax);
-            float next = Mathf.Clamp(_curVal + delta, minSanity, max);
-            float sm = 1f - Mathf.Exp(-smooth * dt);
+            float next = Mathf.Clamp(_curVal + delta, minSanity, _curMax);
+            float sm = Mathf.Max(0.0001f, 1f - Mathf.Exp(-smooth * dt));
             next = Mathf.Lerp(_curVal, next, sm);
             WriteAbsolute(next);
         }
@@ -166,17 +158,17 @@ public class SanityApplierV2 : MonoBehaviour
     void WriteNormalized(float v01)
     {
         if (!player) return;
+        v01 = Mathf.Clamp01(v01);
 
-        // 1) ถ้ามี property Sanity01 → เขียนตรง
         if (_pSanity01 != null && _pSanity01.CanWrite)
         {
-            _pSanity01.SetValue(player, Mathf.Clamp01(v01), null);
+            _pSanity01.SetValue(player, v01, null);
             CallUI();
             if (debugLogs) Debug.Log($"[SanityApplierV2] Sanity01={v01:0.###}", player);
             return;
         }
 
-        // 2) ถ้าไม่มี → แปลงเป็น absolute แล้วพยายามเขียน
+        // fallback → absolute
         float max = Mathf.Max(_curMax, maxSanityFallback);
         WriteAbsolute(v01 * max);
     }
@@ -184,6 +176,7 @@ public class SanityApplierV2 : MonoBehaviour
     void WriteAbsolute(float v)
     {
         if (!player) return;
+        v = Mathf.Clamp(v, minSanity, _curMax);
 
         if (_mSetSanity != null)
         {
@@ -201,7 +194,7 @@ public class SanityApplierV2 : MonoBehaviour
             return;
         }
 
-        if (debugLogs) Debug.LogWarning("[SanityApplierV2] No writable target (SetSanity or sanity field). Please expose one.", player);
+        if (debugLogs) Debug.LogWarning("[SanityApplierV2] No writable target (SetSanity or field)", player);
     }
 
     void CallUI()

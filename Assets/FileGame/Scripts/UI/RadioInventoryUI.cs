@@ -63,20 +63,31 @@ public class RadioInventoryUI : MonoBehaviour
 
     void OnDisable()
     {
+<<<<<<< Updated upstream
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
+=======
+        CloseSafe();
+>>>>>>> Stashed changes
     }
 
     void OnDestroy()
     {
+        CloseSafe();
+    }
+
+    void CloseSafe()
+    {
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
+        ClearButtons();
     }
 
     public void Open(RadioPlayer radio, RadioPlayer.DurationMode mode, float customSeconds, Transform player)
     {
-        if (radio == null)
+        if (radio == null || radio.playerInventory == null || buttonPrefab == null || buttonsParent == null)
         {
+<<<<<<< Updated upstream
             Debug.LogError("[RadioInventoryUI] Open(): radio เป็น null");
             return;
         }
@@ -92,6 +103,9 @@ public class RadioInventoryUI : MonoBehaviour
         if (buttonsParent == null)
         {
             Debug.LogError("[RadioInventoryUI] buttonsParent เป็น null (โปรดลากคอนเทนเนอร์ที่มี Vertical Layout Group)", this);
+=======
+            Debug.LogError("[RadioInventoryUI] Open(): Missing required references");
+>>>>>>> Stashed changes
             return;
         }
 
@@ -101,11 +115,19 @@ public class RadioInventoryUI : MonoBehaviour
         _radioTf = radio.transform;
         _playerTf = player;
 
-        if (verboseLog) Debug.Log("[RadioInventoryUI] Open() — สร้างปุ่มจากของที่มีในกระเป๋า");
+        // รีเฟรชปุ่มถ้า UI เปิดอยู่แล้ว
+        if (IsOpen)
+        {
+            if (verboseLog) Debug.Log("[RadioInventoryUI] UI already open, refreshing buttons");
+            RebuildButtons();
+            return;
+        }
+
         RebuildButtons();
 
         if (panelRoot) panelRoot.SetActive(true);
 
+<<<<<<< Updated upstream
         // เซฟสถานะ cursor เฉพาะตอนเปลี่ยนจาก “ปิด → เปิด”
         if (!_cursorOverridden)
         {
@@ -113,6 +135,11 @@ public class RadioInventoryUI : MonoBehaviour
             _prevVisible = Cursor.visible;
         }
 
+=======
+        // Cursor backup
+        _prevLock = Cursor.lockState;
+        _prevVisible = Cursor.visible;
+>>>>>>> Stashed changes
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
         _cursorOverridden = true;
@@ -123,14 +150,20 @@ public class RadioInventoryUI : MonoBehaviour
 
     public void Close()
     {
+<<<<<<< Updated upstream
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
+=======
+        if (!IsOpen) return;
+        CloseSafe();
+>>>>>>> Stashed changes
 
         if (panelRoot) panelRoot.SetActive(false);
-        ClearButtons();
-        _radio = null; _radioTf = null; _playerTf = null;
+        _radio = null;
+        _radioTf = null;
+        _playerTf = null;
 
-        if (verboseLog) Debug.Log("[RadioInventoryUI] Close()");
+        if (verboseLog) Debug.Log("[RadioInventoryUI] Closed");
     }
 
     void RestoreCursor()
@@ -144,21 +177,16 @@ public class RadioInventoryUI : MonoBehaviour
     {
         if (!IsOpen) return;
 
-        // ปิดเมื่อออกนอกระยะ
-        if (_playerTf && _radioTf)
+        // Auto-close if out of range
+        if (_playerTf && _radioTf && Vector3.Distance(_playerTf.position, _radioTf.position) > autoCloseDistance)
         {
-            float d = Vector3.Distance(_playerTf.position, _radioTf.position);
-            if (d > autoCloseDistance)
-            {
-                if (verboseLog) Debug.Log("[RadioInventoryUI] ปิดเพราะออกนอกระยะ");
-                Close();
-                return;
-            }
+            if (verboseLog) Debug.Log("[RadioInventoryUI] Auto-closing due to distance");
+            Close();
+            return;
         }
 
 #if ENABLE_INPUT_SYSTEM
-        if (enableCloseKey && Keyboard.current != null && Keyboard.current[closeKey].wasPressedThisFrame)
-            Close();
+        if (enableCloseKey && Keyboard.current != null && Keyboard.current[closeKey].wasPressedThisFrame) Close();
 
         if (enableNumberHotkeys && Keyboard.current != null)
         {
@@ -192,7 +220,7 @@ public class RadioInventoryUI : MonoBehaviour
     {
         ClearButtons(); // ตอนนี้คือซ่อน + ล้าง indexMap ไม่ Destroy
 
-        if (!_radio || _radio.tapes == null || _radio.tapes.Count == 0)
+        if (_radio.tapes == null || _radio.tapes.Count == 0)
         {
             SetHeader("No tape available");
             SetHint("Put the tape list in RadioPlayer first.");
@@ -204,7 +232,11 @@ public class RadioInventoryUI : MonoBehaviour
         for (int i = 0; i < _radio.tapes.Count; i++)
         {
             var t = _radio.tapes[i];
+<<<<<<< Updated upstream
             int cnt = _radio.playerInventory ? _radio.playerInventory.GetCount(t.tapeKeyId) : 0;
+=======
+            int cnt = _radio.playerInventory?.GetCount(t.tapeKeyId) ?? 0;
+>>>>>>> Stashed changes
             if (cnt <= 0) continue;
 
             // 🔹 ใช้ปุ่มจาก pool ก่อน ถ้าไม่พอค่อย Instantiate ใหม่
@@ -223,32 +255,42 @@ public class RadioInventoryUI : MonoBehaviour
             _indexMap.Add(i);
 
             var label = btn.GetComponentInChildren<TMP_Text>();
-            string n = string.IsNullOrEmpty(t.displayName) ? t.tapeKeyId : t.displayName;
-            if (label) label.text = $"{availableCount + 1}. {n} (x{cnt})";
+            if (label != null)
+            {
+                string n = string.IsNullOrEmpty(t.displayName) ? t.tapeKeyId : t.displayName;
+                label.text = $"{availableCount + 1}. {n} (x{cnt})";
+            }
 
             int idx = i;
             btn.onClick.RemoveAllListeners();
             btn.onClick.AddListener(() => OnPick(idx));
+
             availableCount++;
         }
 
         if (availableCount == 0)
         {
-            SetHeader("There is no tape in the bag.");
-            SetHint("Go back to the tape first and try again.");
-            if (verboseLog) Debug.LogWarning("[RadioInventoryUI] The player has no tape listed.");
+            SetHeader("No tape in bag.");
+            SetHint("Go back to the tape first.");
+            if (verboseLog) Debug.LogWarning("[RadioInventoryUI] Player has no tape.");
         }
         else
         {
+<<<<<<< Updated upstream
             SetHeader("Select the tape you want to play.");
             SetHint(enableNumberHotkeys
                 ? "Click the button or press the numbers 1–9 • ESC to close."
                 : "Click the button to select • ESC to close.");
+=======
+            SetHeader("Select a tape to play.");
+            SetHint(enableNumberHotkeys ? "Click button or press 1–9 • ESC to close" : "Click button • ESC to close");
+>>>>>>> Stashed changes
         }
     }
 
     void ClearButtons()
     {
+<<<<<<< Updated upstream
         // 🔹 แทน Destroy: แค่ซ่อน + reset onClick เพื่อลด GC และการจองแรมใหม่
         foreach (var b in _spawned)
         {
@@ -260,32 +302,35 @@ public class RadioInventoryUI : MonoBehaviour
         _indexMap.Clear();
         SetHeader("");
         SetHint("");
+=======
+        foreach (var b in _spawned)
+        {
+            if (b)
+            {
+                b.onClick.RemoveAllListeners();
+                Destroy(b.gameObject);
+            }
+        }
+        _spawned.Clear();
+        _indexMap.Clear();
+
+        SetHeader(""); SetHint("");
+>>>>>>> Stashed changes
     }
 
     void OnPick(int tapeIndex)
     {
-        if (_radio == null)
+        if (_radio == null || tapeIndex < 0 || tapeIndex >= _radio.tapes.Count)
         {
-            Debug.LogError("[RadioInventoryUI] OnPick: radio เป็น null");
+            Debug.LogError($"[RadioInventoryUI] Invalid tapeIndex {tapeIndex}");
             Close();
             return;
-        }
-
-        if (tapeIndex < 0 || tapeIndex >= _radio.tapes.Count)
-        {
-            Debug.LogError($"[RadioInventoryUI] OnPick: tapeIndex {tapeIndex} เกินลิสต์");
-            return;
-        }
-
-        if (_radio.playerInventory == null)
-        {
-            Debug.LogError("[RadioInventoryUI] OnPick: RadioPlayer.playerInventory เป็น null ( Consume จะล้มเหลว )", _radio);
         }
 
         if (verboseLog)
         {
             var t = _radio.tapes[tapeIndex];
-            Debug.Log($"[RadioInventoryUI] ใช้เทป index {tapeIndex} / key={t.tapeKeyId}");
+            Debug.Log($"[RadioInventoryUI] Using tape index {tapeIndex} / key={t.tapeKeyId}");
         }
 
         _radio.UseTapeIndexWithMode(tapeIndex, _mode, _customSeconds);
@@ -295,19 +340,12 @@ public class RadioInventoryUI : MonoBehaviour
     void SetHeader(string s) { if (headerText) headerText.text = s; }
     void SetHint(string s) { if (hintText) hintText.text = s; }
 
-    // ---------- helpers ----------
     void EnsureEventSystem()
     {
-#if UNITY_2023_1_OR_NEWER
-        if (FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) == null)
-#else
-#pragma warning disable 618
         if (FindObjectOfType<EventSystem>(true) == null)
-#pragma warning restore 618
-#endif
         {
             var go = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
-            Debug.LogWarning("[RadioInventoryUI] ไม่พบ EventSystem — สร้างให้ชั่วคราว", go);
+            Debug.LogWarning("[RadioInventoryUI] EventSystem not found — created temporary", go);
         }
     }
 
@@ -317,11 +355,14 @@ public class RadioInventoryUI : MonoBehaviour
         if (canvas && canvas.GetComponent<GraphicRaycaster>() == null)
         {
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            Debug.LogWarning("[RadioInventoryUI] Canvas ไม่มี GraphicRaycaster — เพิ่มให้แล้ว", canvas);
+            Debug.LogWarning("[RadioInventoryUI] Added GraphicRaycaster to Canvas", canvas);
         }
     }
 
+<<<<<<< Updated upstream
     // ---------- Freeze/Unfreeze player controls ----------
+=======
+>>>>>>> Stashed changes
     void TryFreezePlayerControls(bool freeze)
     {
         if (_playerTf == null) return;
@@ -329,36 +370,33 @@ public class RadioInventoryUI : MonoBehaviour
         if (_playerCtrl == null)
         {
             var playerType = System.Type.GetType("PlayerControllerTest");
+<<<<<<< Updated upstream
             if (playerType != null)
                 _playerCtrl = _playerTf.GetComponentInParent(playerType);
 
+=======
+            _playerCtrl = playerType != null ? _playerTf.GetComponentInParent(playerType) : null;
+>>>>>>> Stashed changes
             if (_playerCtrl == null)
             {
                 var pc3d = _playerTf.GetComponentInParent<PlayerController3D>();
                 if (pc3d != null) _playerCtrl = pc3d;
             }
         }
+
         if (_playerCtrl == null) return;
 
         var t = _playerCtrl.GetType();
-
         void SetFloat(string name, ref float backup, float newVal)
         {
-            var f = t.GetField(name,
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup < 0f) backup = (float)f.GetValue(_playerCtrl);
             f.SetValue(_playerCtrl, newVal);
         }
-
         void Restore(string name, ref float backup)
         {
-            var f = t.GetField(name,
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup >= 0f) f.SetValue(_playerCtrl, backup);
             backup = -1f;
@@ -370,7 +408,6 @@ public class RadioInventoryUI : MonoBehaviour
             {
                 SetFloat("mouseSensitivityX", ref _prevMouseX, 0f);
                 SetFloat("sensX", ref _prevMouseX, 0f);
-
                 SetFloat("mouseSensitivityY", ref _prevMouseY, 0f);
                 SetFloat("sensY", ref _prevMouseY, 0f);
             }
@@ -387,7 +424,6 @@ public class RadioInventoryUI : MonoBehaviour
             {
                 Restore("mouseSensitivityX", ref _prevMouseX);
                 Restore("sensX", ref _prevMouseX);
-
                 Restore("mouseSensitivityY", ref _prevMouseY);
                 Restore("sensY", ref _prevMouseY);
             }

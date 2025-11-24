@@ -38,7 +38,7 @@ public class ShowQuestTrigger : MonoBehaviour
     [Tooltip("True ถ้าผู้เล่นมีไอเท็มที่ต้องการครบ")]
     public bool isKeyExit = false;
 
-    private bool _done;
+    private bool _done = false;
     private Collider _col;
 
     void Reset()
@@ -70,16 +70,14 @@ public class ShowQuestTrigger : MonoBehaviour
 
         int have = inventory.GetCount(requiredItemId);
 
-        // ✅ ถ้ามีไอเท็มครบ ให้ตั้งค่า isKeyExit = true
-        if (have >= requiredCount)
-        {
-            isKeyExit = true;
-        }
-        else
+        if (have < requiredCount)
         {
             isKeyExit = false;
-            return; // ยังไม่ครบ -> หยุดที่นี่
+            return; // ยังไม่ครบ -> หยุด
         }
+
+        // ✅ ถ้ามีไอเท็มครบ ให้ตั้งค่า isKeyExit = true
+        isKeyExit = true;
 
         // Optionally consume the items
         if (consumeOnSuccess)
@@ -88,7 +86,7 @@ public class ShowQuestTrigger : MonoBehaviour
             if (!ok) return;
         }
 
-        // Activate targets
+        // Activate target objects
         foreach (var go in objectsToActivate)
         {
             if (go) go.SetActive(true);

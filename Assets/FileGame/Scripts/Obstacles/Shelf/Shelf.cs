@@ -61,12 +61,9 @@ public class Shelf : MonoBehaviour
     public AudioClip openSfx;
     public AudioClip closeSfx;
     public AudioClip lockedSfx;
-
-    [Tooltip("เสียงล็อกตัวที่ 2 (จะเล่นตามหลังเสียงแรก)")]
     public AudioClip lockedSfx2;
 
     [Range(0f, 1f)] public float sfxVolume = 1f;
-
     [Tooltip("ดีเลย์ระหว่าง lockedSfx -> lockedSfx2 (วินาที)")]
     [Min(0f)] public float lockedSfx2Delay = 0.15f;
 
@@ -88,6 +85,7 @@ public class Shelf : MonoBehaviour
     bool _isOpen = false;
     InventoryLite _playerInv;
     Coroutine _anim;
+    MethodInfo _msgMethod;
 
     [Header("Interact Guard")]
     [Tooltip("กันสแปม: เวลาขั้นต่ำระหว่างการกด (วินาที)")]
@@ -109,20 +107,33 @@ public class Shelf : MonoBehaviour
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D sound
         }
 
         if (doors == null) doors = new List<DoorConfig>();
         NormalizeConfigs();
         CacheAllDoorStates();
+        CacheMessageUIMethod();
 
         if (autoOpenOnPlay)
-            OpenNow(); // ทดสอบทันทีตอนเริ่มเกม
+            OpenNow();
+    }
+
+    void OnDestroy()
+    {
+        if (_anim != null)
+            StopCoroutine(_anim);
+
+        _anim = null;
+        _playerInv = null;
     }
 
     void NormalizeConfigs()
     {
-        foreach (var d in doors)
+        if (doors == null) return;
+        for (int i = 0; i < doors.Count; i++)
         {
+            var d = doors[i];
             if (!d.door) continue;
             if (d.openAngle < 0) d.openAngle = -d.openAngle;
             if (d.slideDistance < 0) d.slideDistance = -d.slideDistance;
@@ -131,32 +142,29 @@ public class Shelf : MonoBehaviour
 
     void CacheAllDoorStates()
     {
-        foreach (var d in doors)
+        if (doors == null || doors.Count == 0) return;
+
+        for (int i = 0; i < doors.Count; i++)
         {
+            var d = doors[i];
             if (!d.door) continue;
 
-            // เก็บสถานะ "ปิด"
             d.closedRot = d.door.localRotation;
             d.closedPos = d.door.localPosition;
 
-            // สร้างสถานะ "เปิด"
             switch (d.motion)
             {
                 case MotionType.Rotation:
-                    {
-                        Vector3 axis = AxisToVector(d.axis);
-                        float sign = d.invert ? -1f : 1f;
-                        d.openRot = d.closedRot * Quaternion.AngleAxis(sign * d.openAngle, axis);
-                        d.openPos = d.closedPos;
-                        break;
-                    }
+                    Vector3 axis = AxisToVector(d.axis);
+                    float sign = d.invert ? -1f : 1f;
+                    d.openRot = d.closedRot * Quaternion.AngleAxis(sign * d.openAngle, axis);
+                    d.openPos = d.closedPos;
+                    break;
                 case MotionType.Slide:
-                    {
-                        Vector3 dir = AxisToVector(d.axis) * (d.invert ? -1f : 1f);
-                        d.openPos = d.closedPos + dir * d.slideDistance;
-                        d.openRot = d.closedRot;
-                        break;
-                    }
+                    Vector3 dir = AxisToVector(d.axis) * (d.invert ? -1f : 1f);
+                    d.openPos = d.closedPos + dir * d.slideDistance;
+                    d.openRot = d.closedRot;
+                    break;
             }
         }
     }
@@ -171,54 +179,35 @@ public class Shelf : MonoBehaviour
         }
     }
 
-    void ShowMsg(string msg)
+    void CacheMessageUIMethod()
     {
-        if (!messageUI)
-        {
-            if (debugLogs) Debug.Log(msg);
-            return;
-        }
-
-        // ใช้รีเฟลกชันเพื่อรองรับหลายชื่อเมธอดของ UI:
-        // 1) ShowCenter(string,float)  2) Show(string)  3) SetText(string)
-        var uiType = messageUI.GetType();
-
-        var m = uiType.GetMethod("ShowCenter", new Type[] { typeof(string), typeof(float) });
-        if (m != null)
-        {
-            m.Invoke(messageUI, new object[] { msg, 1.2f });
-            return;
-        }
-
-        m = uiType.GetMethod("Show", new Type[] { typeof(string) });
-        if (m != null)
-        {
-            m.Invoke(messageUI, new object[] { msg });
-            return;
-        }
-
-        m = uiType.GetMethod("SetText", new Type[] { typeof(string) });
-        if (m != null)
-        {
-            m.Invoke(messageUI, new object[] { msg });
-            return;
-        }
-
-        if (debugLogs) Debug.Log(msg);
+        if (!messageUI) return;
+        var t = messageUI.GetType();
+        _msgMethod = t.GetMethod("ShowCenter", new Type[] { typeof(string), typeof(float) }) ??
+                     t.GetMethod("Show", new Type[] { typeof(string) }) ??
+                     t.GetMethod("SetText", new Type[] { typeof(string) });
     }
 
-    // ===== Interact entry (ใช้ร่วมกับ PlayerAimPickup) =====
+    void ShowMsg(string msg)
+    {
+        if (_msgMethod != null)
+        {
+            var parameters = _msgMethod.GetParameters().Length == 2 ? new object[] { msg, 1.2f } : new object[] { msg };
+            _msgMethod.Invoke(messageUI, parameters);
+        }
+        else if (debugLogs) Debug.Log(msg);
+    }
+
     public void TryInteract(GameObject playerGO)
     {
         if (debugLogs) Debug.Log("[Shelf] TryInteract");
 
-        // กันสแปม: คูลดาวน์
         if (Time.time - _lastInteractTime < interactCooldown)
         {
             if (debugLogs) Debug.Log("[Shelf] Interact ignored: cooldown");
             return;
         }
-        // กันสแปม: บล็อกระหว่างอนิเมชัน
+
         if (blockWhileAnimating && (_isBusy || _anim != null))
         {
             if (debugLogs) Debug.Log("[Shelf] Interact ignored: animating");
@@ -229,7 +218,6 @@ public class Shelf : MonoBehaviour
 
         if (!_isOpen)
         {
-            // เช็คล็อก
             if (isLocked)
             {
                 if (!_playerInv && playerGO)
@@ -237,14 +225,8 @@ public class Shelf : MonoBehaviour
 
                 if (!_playerInv || _playerInv.GetCount(requiredKeyId) <= 0)
                 {
-                    // เสียงล็อกตัวแรก
-                    if (lockedSfx)
-                        audioSource.PlayOneShot(lockedSfx, sfxVolume);
-
-                    // เสียงล็อกตัวที่สอง (ดีเลย์ตาม lockedSfx2Delay)
-                    if (lockedSfx2)
-                        StartCoroutine(PlayLockedSecond());
-
+                    if (lockedSfx) audioSource.PlayOneShot(lockedSfx, sfxVolume);
+                    if (lockedSfx2) StartCoroutine(PlayLockedSecond());
                     onLockedTry?.Invoke();
                     ShowMsg("It's locked. You need a key.");
                     if (debugLogs) Debug.Log("[Shelf] Locked: no key.");
@@ -256,32 +238,31 @@ public class Shelf : MonoBehaviour
                     bool ok = _playerInv.Consume(requiredKeyId, 1);
                     if (debugLogs) Debug.Log($"[Shelf] Consume key: {ok} for {requiredKeyId}");
                 }
-                isLocked = false; // ปลดล็อก
+
+                isLocked = false;
             }
 
             OpenNow();
         }
-        else
+        else if (allowToggle)
         {
-            if (allowToggle)
-                CloseNow();
+            CloseNow();
         }
     }
 
-    // ===== Public controls / Test =====
     [ContextMenu("TEST / Open Now")]
     public void OpenNow()
     {
-        if (blockWhileAnimating && _anim != null) return; // กันซ้อน
-        if (_anim != null) StopCoroutine(_anim);
+        if (blockWhileAnimating && _anim != null) return;
+        if (_anim != null) { StopCoroutine(_anim); _anim = null; }
         _anim = StartCoroutine(AnimateDoors(true));
     }
 
     [ContextMenu("TEST / Close Now")]
     public void CloseNow()
     {
-        if (blockWhileAnimating && _anim != null) return; // กันซ้อน
-        if (_anim != null) StopCoroutine(_anim);
+        if (blockWhileAnimating && _anim != null) return;
+        if (_anim != null) { StopCoroutine(_anim); _anim = null; }
         _anim = StartCoroutine(AnimateDoors(false));
     }
 
@@ -290,11 +271,9 @@ public class Shelf : MonoBehaviour
         _isBusy = true;
         if (debugLogs) Debug.Log("[Shelf] AnimateDoors " + (toOpen ? "Open" : "Close"));
 
-        // SFX
         var sfx = toOpen ? openSfx : closeSfx;
         if (sfx) audioSource.PlayOneShot(sfx, sfxVolume);
 
-        // ระหว่างอนิเมชัน
         float t = 0f;
         while (t < 1f)
         {
@@ -315,17 +294,15 @@ public class Shelf : MonoBehaviour
 
     System.Collections.IEnumerator PlayLockedSecond()
     {
-        if (lockedSfx2Delay > 0f)
-            yield return new WaitForSeconds(lockedSfx2Delay);
-
-        if (lockedSfx2)
-            audioSource.PlayOneShot(lockedSfx2, sfxVolume);
+        if (lockedSfx2Delay > 0f) yield return new WaitForSeconds(lockedSfx2Delay);
+        if (lockedSfx2) audioSource.PlayOneShot(lockedSfx2, sfxVolume);
     }
 
     void ApplyProgressAll(float k01)
     {
-        foreach (var d in doors)
-            ApplyProgressOne(d, k01);
+        if (doors == null) return;
+        for (int i = 0; i < doors.Count; i++)
+            ApplyProgressOne(doors[i], k01);
     }
 
     void ApplyProgressOne(DoorConfig d, float k01)
@@ -337,21 +314,19 @@ public class Shelf : MonoBehaviour
             case MotionType.Rotation:
                 d.door.localRotation = Quaternion.Slerp(d.closedRot, d.openRot, k01);
                 break;
-
             case MotionType.Slide:
                 d.door.localPosition = Vector3.Lerp(d.closedPos, d.openPos, k01);
                 break;
         }
     }
 
-    // ===== Gizmos =====
     void OnDrawGizmosSelected()
     {
         if (doors == null) return;
-        foreach (var d in doors)
+        for (int i = 0; i < doors.Count; i++)
         {
-            if (!d.door) continue;
-            DrawDoorAxisGizmo(d);
+            if (!doors[i].door) continue;
+            DrawDoorAxisGizmo(doors[i]);
         }
     }
 
@@ -376,13 +351,13 @@ public class Shelf : MonoBehaviour
     }
 }
 
-/*
- // ถ้าคุณยังไม่มี UI แสดงข้อความ และอยากทดสอบเร็ว ๆ
- // สร้างไฟล์ใหม่ชื่อ SimplePlayerMessageUI.cs แล้ววางคลาสนี้แยกไฟล์ (อย่าใส่รวมไฟล์เดียวกันถ้าไม่ต้องการ)
- public class SimplePlayerMessageUI : MonoBehaviour
- {
-     public void ShowCenter(string msg, float seconds = 1.2f)
-     {
-         Debug.Log($"[UI] {msg} ({seconds:0.##}s)");
-     }
- }*/
+/* 
+ตัวอย่าง UI ทดสอบ:
+public class SimplePlayerMessageUI : MonoBehaviour
+{
+    public void ShowCenter(string msg, float seconds = 1.2f)
+    {
+        Debug.Log($"[UI] {msg} ({seconds:0.##}s)");
+    }
+}
+*/

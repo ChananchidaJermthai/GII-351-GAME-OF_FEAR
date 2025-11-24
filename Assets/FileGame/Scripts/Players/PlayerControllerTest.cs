@@ -5,84 +5,68 @@ using UnityEngine.UI;
 
 [RequireComponent(typeof(CharacterController))]
 [DisallowMultipleComponent]
-public class PlayerControllerTest : MonoBehaviour
+public class PlayerControllerOptimized : MonoBehaviour
 {
-    #region === Inspector: Input Actions ===
+    #region Inspector
     [Header("Input Actions (.inputactions)")]
-    public InputActionReference moveAction;    // Vector2
-    public InputActionReference lookAction;    // Vector2
-    public InputActionReference sprintAction;  // Button
-    public InputActionReference crouchAction;  // Button (toggle/hold)
-    public InputActionReference useItemAction; // Button
-    #endregion
+    public InputActionReference moveAction;
+    public InputActionReference lookAction;
+    public InputActionReference sprintAction;
+    public InputActionReference crouchAction;
+    public InputActionReference useItemAction;
 
-    #region === Inspector: References ===
     [Header("Refs")]
     public Camera playerCamera;
     public InventoryLite inventory;
-    #endregion
 
-    #region === Inspector: Movement / CharacterController ===
     [Header("Move Speeds (m/s)")]
-    [Min(0f)] public float walkSpeed = 3.5f;
-    [Min(0f)] public float sprintSpeed = 6.5f;
-    [Min(0f)] public float crouchSpeed = 2.0f;
+    public float walkSpeed = 3.5f;
+    public float sprintSpeed = 6.5f;
+    public float crouchSpeed = 2.0f;
 
     [Header("Crouch")]
     public bool crouchToggle = true;
-    [Min(0.8f)] public float standHeight = 1.8f;
-    [Min(0.4f)] public float crouchHeight = 1.2f;
-    [Min(1f)] public float heightLerpSpeed = 12f;
+    public float standHeight = 1.8f;
+    public float crouchHeight = 1.2f;
+    public float heightLerpSpeed = 12f;
 
     [Header("Gravity")]
     public float gravity = -20f;
     public float stickToGroundForce = -2f;
-    #endregion
 
-    #region === Inspector: Mouse Look ===
     [Header("Mouse Look")]
     public float mouseSensitivityX = 1.2f;
     public float mouseSensitivityY = 1.2f;
     public float minPitch = -80f;
     public float maxPitch = 80f;
-    #endregion
 
-    #region === Inspector: Stamina ===
-    [Header("Stamina (for Sprint)")]
+    [Header("Stamina")]
     public TMP_Text staminaText;
-    [Min(0.1f)] public float staminaMax = 100f;
-    [Min(0.1f)] public float staminaDrainPerSec = 22f;
-    [Min(0.1f)] public float staminaRegenPerSec = 14f;
-    [Min(0f)] public float regenDelay = 0.6f;
-    [Min(0f)] public float minSprintToStart = 10f;
-    #endregion
+    public float staminaMax = 100f;
+    public float staminaDrainPerSec = 22f;
+    public float staminaRegenPerSec = 14f;
+    public float regenDelay = 0.6f;
+    public float minSprintToStart = 10f;
 
-    #region === Inspector: Sanity ===
-    [Header("Sanity (auto regen)")]
-    public Slider sanitySlider; // Max=1
+    [Header("Sanity")]
+    public Slider sanitySlider;
     public TMP_Text sanityText;
-    [Min(0.1f)] public float sanityMax = 100f;
-    [Min(0f)] public float sanityStart = 0f;
-    [Min(0f)] public float sanityRegenPerSec = 5f;
-    #endregion
+    public float sanityMax = 100f;
+    public float sanityStart = 0f;
+    public float sanityRegenPerSec = 5f;
 
-    #region === Inspector: Use Item ===
-    [Header("Use Item Settings")]
+    [Header("Use Item")]
     public string useItemKeyId = "Key";
     public float sanityCostPerUse = 10f;
     public TMP_Text useItemFeedbackText;
     public float feedbackHideDelay = 1.5f;
-    #endregion
 
-    #region === Inspector: Fallback Keys (Input System only) ===
-    [Header("Fallback Keys (Input System)")]
+    [Header("Fallback Key (InputSystem only)")]
     public Key keyUseItemIS = Key.E;
     Keyboard kb => Keyboard.current;
     Mouse ms => Mouse.current;
-    #endregion
 
-    #region === Inspector: Footsteps (Simple Loop) ===
-    [Header("Footstep (Simple Loop)")]
+    [Header("Footsteps (Loop)")]
     public bool footstepEnable = true;
     public AudioSource footstepSource;
     public AudioClip walkLoop;
@@ -95,25 +79,22 @@ public class PlayerControllerTest : MonoBehaviour
     [Range(0f, 0.3f)] public float fadeTime = 0.08f;
     #endregion
 
-    #region === Runtime State & Public Properties ===
-    // Character / movement state
+    #region Runtime State
     CharacterController _cc;
     float _pitch, _verticalVel;
     bool _isCrouching, _isSprinting;
 
-    // Stamina / Sanity
     float _stamina, _lastSprintTime;
     float _sanity;
     float _feedbackTimer = -1f;
 
-    // Footstep fade state
     float _currentTargetVol = 0f;
-    float _fadeVel = 0f;
-
-    // Fix sinking: keep capsule bottom anchored
     float _capsuleBottomLocalY;
 
-    // Public read-only (for other scripts)
+    float _lastSanity01 = -1f;
+    #endregion
+
+    #region Properties
     public bool IsSprinting => _isSprinting;
     public bool IsCrouching => _isCrouching;
     public float CurrentSpeedXZ => new Vector3(_cc.velocity.x, 0f, _cc.velocity.z).magnitude;
@@ -121,7 +102,7 @@ public class PlayerControllerTest : MonoBehaviour
     public float Sanity01 => Mathf.Clamp01(_sanity / sanityMax);
     #endregion
 
-    #region === Unity Lifecycle ===
+    #region Unity Lifecycle
     void OnEnable()
     {
         moveAction?.action.Enable();
@@ -146,7 +127,6 @@ public class PlayerControllerTest : MonoBehaviour
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
 
-        // Remember capsule bottom (local) from Inspector values
         _capsuleBottomLocalY = _cc.center.y - (_cc.height * 0.5f);
 
         _stamina = staminaMax;
@@ -157,7 +137,6 @@ public class PlayerControllerTest : MonoBehaviour
 
         if (useItemFeedbackText) useItemFeedbackText.text = "";
 
-        // Footstep AudioSource setup
         if (!footstepSource) footstepSource = gameObject.AddComponent<AudioSource>();
         footstepSource.playOnAwake = false;
         footstepSource.loop = true;
@@ -167,38 +146,44 @@ public class PlayerControllerTest : MonoBehaviour
         footstepSource.maxDistance = 18f;
         footstepSource.volume = 0f;
 
-        UpdateSanityUI();
+        UpdateSanityUI(_sanity / sanityMax);
         UpdateStaminaUI();
     }
 
     void Update()
     {
-        #region === Main Update Loop ===
         UpdateStaminaUI();
         UpdateFeedbackTimer();
 
-        // --- Read Inputs ---
         Vector2 move = ReadMoveIA();
         Vector2 look = ReadLookIA();
         bool wantSprint = ReadSprintIA();
         bool crouchPress = ReadCrouchIA();
         bool useItem = ReadUseItemIA();
 
-        // --- Core handlers ---
         HandleCrouch(crouchPress);
         HandleSprintAndStamina(move, wantSprint);
         HandleLook(look);
 
-        // --- Motion / Gravity ---
+        MoveCharacter(move);
+        UpdateFootstepLoop();
+
+        RegenerateSanity();
+        if (useItem) TryUseConfiguredItem();
+    }
+    #endregion
+
+    #region Character Motion
+    void MoveCharacter(Vector2 move)
+    {
         float targetSpeed = _isCrouching ? crouchSpeed : (_isSprinting ? sprintSpeed : walkSpeed);
-        Vector3 wishDir = (transform.right * move.x + transform.forward * move.y);
+        Vector3 wishDir = transform.right * move.x + transform.forward * move.y;
         if (wishDir.sqrMagnitude > 1f) wishDir.Normalize();
         Vector3 horizontalVel = wishDir * targetSpeed;
 
         _verticalVel = _cc.isGrounded ? stickToGroundForce : _verticalVel + gravity * Time.deltaTime;
         Vector3 motion = horizontalVel + Vector3.up * _verticalVel;
 
-        // --- Keep capsule bottom anchored while height changes (anti-sink) ---
         float targetHeight = Mathf.Max(_cc.radius * 2f + 0.01f, _isCrouching ? crouchHeight : standHeight);
         _cc.height = Mathf.Lerp(_cc.height, targetHeight, Time.deltaTime * heightLerpSpeed);
         var c = _cc.center;
@@ -206,89 +191,62 @@ public class PlayerControllerTest : MonoBehaviour
         _cc.center = c;
 
         _cc.Move(motion * Time.deltaTime);
-
-        // --- Footstep loop ---
-        UpdateFootstepLoop();
-        #endregion
-        // --- Sanity / Use item ---
-        RegenerateSanity();
-        if (useItem) TryUseConfiguredItem();
-        //------------------------------------------
-    }
-
-    void OnValidate()
-    {
-        if (!_cc) _cc = GetComponent<CharacterController>();
-        if (_cc)
-        {
-            // Height must not be smaller than 2*radius
-            float minH = Mathf.Max(0.1f, _cc.radius * 2f + 0.01f);
-            standHeight = Mathf.Max(standHeight, minH);
-            crouchHeight = Mathf.Max(crouchHeight, minH);
-        }
     }
     #endregion
 
-    #region === Footsteps (Loop Logic) ===
+    #region Footsteps
     void UpdateFootstepLoop()
     {
         if (!footstepEnable || footstepSource == null) return;
 
         Vector3 vel = _cc.velocity; vel.y = 0f;
-        float speed = vel.magnitude;
-        bool isMoving = _cc.isGrounded && speed >= minSpeedForSound;
+        bool isMoving = _cc.isGrounded && vel.sqrMagnitude >= minSpeedForSound * minSpeedForSound;
 
-        if (!isMoving)
-        {
-            _currentTargetVol = 0f;
-            if (fadeTime <= 0f)
-            {
-                if (footstepSource.isPlaying) footstepSource.Stop();
-                footstepSource.volume = 0f;
-            }
-            else
-            {
-                if (footstepSource.volume <= 0.001f && footstepSource.isPlaying)
-                    footstepSource.Stop();
-                footstepSource.volume = Mathf.SmoothDamp(footstepSource.volume, 0f, ref _fadeVel, fadeTime);
-            }
-            return;
-        }
+        AudioClip wantClip = _isCrouching ? crouchLoop : (_isSprinting ? sprintLoop : walkLoop);
+        float wantVol = isMoving ? (_isCrouching ? crouchVolume : (_isSprinting ? sprintVolume : walkVolume)) : 0f;
 
-        AudioClip wantClip = _isCrouching ? (crouchLoop ? crouchLoop : walkLoop)
-                          : (_isSprinting ? (sprintLoop ? sprintLoop : walkLoop)
-                                          : walkLoop);
-
-        float wantVol = _isCrouching ? crouchVolume
-                      : (_isSprinting ? sprintVolume : walkVolume);
+        // Volume fade
+        if (fadeTime > 0f)
+            footstepSource.volume = Mathf.MoveTowards(footstepSource.volume, wantVol, Time.deltaTime / fadeTime);
+        else
+            footstepSource.volume = wantVol;
 
         if (footstepSource.clip != wantClip)
         {
             footstepSource.clip = wantClip;
-            if (wantClip)
-            {
-                if (!footstepSource.isPlaying) footstepSource.Play();
-            }
-            else
-            {
-                footstepSource.Stop();
-                return;
-            }
+            if (wantClip && wantVol > 0f) footstepSource.Play();
         }
         else
         {
-            if (wantClip && !footstepSource.isPlaying) footstepSource.Play();
+            if (wantVol > 0f && !footstepSource.isPlaying) footstepSource.Play();
+            if (wantVol <= 0f && footstepSource.isPlaying) footstepSource.Stop();
         }
-
-        _currentTargetVol = Mathf.Clamp01(wantVol);
-        if (fadeTime > 0f)
-            footstepSource.volume = Mathf.SmoothDamp(footstepSource.volume, _currentTargetVol, ref _fadeVel, fadeTime);
-        else
-            footstepSource.volume = _currentTargetVol;
     }
     #endregion
 
-    #region === Use Item Logic & UI Feedback ===
+    #region Sanity & Stamina
+    void RegenerateSanity()
+    {
+        if (sanityRegenPerSec <= 0f || _sanity >= sanityMax) return;
+        _sanity = Mathf.Min(sanityMax, _sanity + sanityRegenPerSec * Time.deltaTime);
+        float sanity01 = _sanity / sanityMax;
+        if (Mathf.Abs(sanity01 - _lastSanity01) > 0.001f) UpdateSanityUI(sanity01);
+    }
+
+    void UpdateSanityUI(float sanity01)
+    {
+        _lastSanity01 = sanity01;
+        if (sanitySlider) sanitySlider.value = sanity01;
+        if (sanityText) sanityText.text = $"Sanity: {(int)_sanity}/{(int)sanityMax}";
+    }
+
+    void UpdateStaminaUI()
+    {
+        if (staminaText) staminaText.text = $"Stamina: {(int)_stamina}/{(int)staminaMax}";
+    }
+    #endregion
+
+    #region Use Item
     void TryUseConfiguredItem()
     {
         if (string.IsNullOrEmpty(useItemKeyId)) { ShowFeedback("ไม่ได้ตั้ง KeyID ของไอเท็ม"); return; }
@@ -300,14 +258,11 @@ public class PlayerControllerTest : MonoBehaviour
             if (sanityCostPerUse > 0f)
             {
                 _sanity = Mathf.Max(0f, _sanity - sanityCostPerUse);
-                UpdateSanityUI();
+                UpdateSanityUI(_sanity / sanityMax);
             }
             ShowFeedback($"Use {useItemKeyId} -1");
         }
-        else
-        {
-            ShowFeedback($"Missing {useItemKeyId} !!");
-        }
+        else ShowFeedback($"Missing {useItemKeyId} !!");
     }
 
     void ShowFeedback(string msg)
@@ -317,10 +272,7 @@ public class PlayerControllerTest : MonoBehaviour
             useItemFeedbackText.text = msg;
             _feedbackTimer = feedbackHideDelay > 0f ? feedbackHideDelay : -1f;
         }
-        else
-        {
-            Debug.Log(msg);
-        }
+        else Debug.Log(msg);
     }
 
     void UpdateFeedbackTimer()
@@ -335,10 +287,10 @@ public class PlayerControllerTest : MonoBehaviour
     }
     #endregion
 
-    #region === Input Readers (Input System) ===
+    #region Input
     Vector2 ReadMoveIA()
     {
-        if (moveAction && moveAction.action.enabled) return moveAction.action.ReadValue<Vector2>();
+        if (moveAction?.action.enabled == true) return moveAction.action.ReadValue<Vector2>();
         float x = 0f, y = 0f;
         if (kb != null)
         {
@@ -350,34 +302,21 @@ public class PlayerControllerTest : MonoBehaviour
 
     Vector2 ReadLookIA()
     {
-        if (lookAction && lookAction.action.enabled) return lookAction.action.ReadValue<Vector2>();
+        if (lookAction?.action.enabled == true) return lookAction.action.ReadValue<Vector2>();
         var d = ms != null ? ms.delta.ReadValue() * 0.1f : Vector2.zero;
         return new Vector2(d.x, d.y);
     }
 
-    bool ReadSprintIA()
-    {
-        if (sprintAction && sprintAction.action.enabled) return sprintAction.action.IsPressed();
-        return kb != null && kb.leftShiftKey.isPressed;
-    }
+    bool ReadSprintIA() => sprintAction?.action.enabled == true ? sprintAction.action.IsPressed() : kb != null && kb.leftShiftKey.isPressed;
 
-    bool ReadCrouchIA()
-    {
-        if (crouchAction && crouchAction.action.enabled)
-            return crouchToggle ? crouchAction.action.WasPressedThisFrame()
-                                : crouchAction.action.IsPressed();
-        if (kb == null) return false;
-        return crouchToggle ? kb.leftCtrlKey.wasPressedThisFrame : kb.leftCtrlKey.isPressed;
-    }
+    bool ReadCrouchIA() => crouchAction?.action.enabled == true
+        ? crouchToggle ? crouchAction.action.WasPressedThisFrame() : crouchAction.action.IsPressed()
+        : kb != null && (crouchToggle ? kb.leftCtrlKey.wasPressedThisFrame : kb.leftCtrlKey.isPressed);
 
-    bool ReadUseItemIA()
-    {
-        if (useItemAction && useItemAction.action.enabled) return useItemAction.action.WasPressedThisFrame();
-        return kb != null && kb[keyUseItemIS].wasPressedThisFrame;
-    }
+    bool ReadUseItemIA() => useItemAction?.action.enabled == true ? useItemAction.action.WasPressedThisFrame() : kb != null && kb[keyUseItemIS].wasPressedThisFrame;
     #endregion
 
-    #region === Core Handlers: Look / Crouch / Sprint&Stamina ===
+    #region Core Handlers
     void HandleLook(Vector2 look)
     {
         float yawDelta = look.x * mouseSensitivityX;
@@ -390,8 +329,8 @@ public class PlayerControllerTest : MonoBehaviour
 
     void HandleCrouch(bool inputCrouch)
     {
-        if (crouchToggle) { if (inputCrouch) _isCrouching = !_isCrouching; }
-        else { _isCrouching = inputCrouch; }
+        if (crouchToggle) if (inputCrouch) _isCrouching = !_isCrouching;
+        else _isCrouching = inputCrouch;
         if (_isCrouching) _isSprinting = false;
     }
 
@@ -400,8 +339,8 @@ public class PlayerControllerTest : MonoBehaviour
         bool canMove = move.sqrMagnitude > 0.001f;
         bool canStartSprint = !_isCrouching && canMove && _stamina >= minSprintToStart;
 
-        if (wantSprint && canStartSprint) _isSprinting = true;
-        if (!wantSprint || !canMove || _stamina <= 0f) _isSprinting = false;
+        _isSprinting = wantSprint && canStartSprint;
+        if (!_isSprinting || !canMove || _stamina <= 0f) _isSprinting = false;
 
         if (_isSprinting)
         {
@@ -412,28 +351,6 @@ public class PlayerControllerTest : MonoBehaviour
         {
             _stamina = Mathf.Min(staminaMax, _stamina + staminaRegenPerSec * Time.deltaTime);
         }
-    }
-    #endregion
-
-    #region === Sanity Methods ===
-    void RegenerateSanity()
-    {
-        if (sanityRegenPerSec > 0f && _sanity < sanityMax)
-        {
-            _sanity = Mathf.Min(sanityMax, _sanity + sanityRegenPerSec * Time.deltaTime);
-            UpdateSanityUI();
-        }
-    }
-
-    void UpdateSanityUI()
-    {
-        if (sanitySlider) sanitySlider.value = Mathf.Clamp01(_sanity / sanityMax);
-        if (sanityText) sanityText.text = $"Sanity: {Mathf.RoundToInt(_sanity)}/{Mathf.RoundToInt(sanityMax)}";
-    }
-
-    void UpdateStaminaUI()
-    {
-        if (staminaText) staminaText.text = $"Stamina: {Mathf.RoundToInt(_stamina)}/{Mathf.RoundToInt(staminaMax)}";
     }
     #endregion
 }

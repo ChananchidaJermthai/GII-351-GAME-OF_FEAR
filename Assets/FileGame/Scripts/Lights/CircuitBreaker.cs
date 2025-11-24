@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using TMPro;
@@ -25,9 +26,8 @@ public class CircuitBreaker : MonoBehaviour
     [Range(0f, 1f)] public float sfxVolume = 1f;
 
     [Header("UI Feedback")]
-    public GameObject messageRoot;     // Canvas / Panel
-    public TMP_Text messageText;       // TextMeshPro สำหรับข้อความ
-    [Tooltip("เวลาที่ข้อความจะหายไปหลังแสดง (วินาที)")]
+    public GameObject messageRoot;  
+    public TMP_Text messageText;
     public float messageDuration = 2f;
 
     [Header("Events")]
@@ -57,7 +57,9 @@ public class CircuitBreaker : MonoBehaviour
 #pragma warning restore 618
 #endif
 
-        CollectLights();
+        if (autoCollectLights)
+            CollectLights();
+
         if (turnOffOnStart)
             ApplyPower(false);
 
@@ -74,12 +76,15 @@ public class CircuitBreaker : MonoBehaviour
         _collected.Clear();
         foreach (var l in all)
         {
-            if (((1 << l.gameObject.layer) & lightLayers.value) != 0)
+            if (l && ((1 << l.gameObject.layer) & lightLayers.value) != 0)
                 _collected.Add(l);
         }
+
         foreach (var l in extraLights)
+        {
             if (l && !_collected.Contains(l))
                 _collected.Add(l);
+        }
     }
 
     void ApplyPower(bool on)
@@ -98,7 +103,7 @@ public class CircuitBreaker : MonoBehaviour
             return;
         }
 
-        int count = playerInventory.GetCount(fuseKeyId);
+        int count = SafeGetCount(playerInventory, fuseKeyId);
         if (count <= 0)
         {
             ShowMessage("You need a fuse to restore power.");
@@ -107,8 +112,7 @@ public class CircuitBreaker : MonoBehaviour
 
         if (consumeFuseOnUse)
         {
-            bool ok = playerInventory.Consume(fuseKeyId, 1);
-            if (!ok)
+            if (!TryConsume(playerInventory, fuseKeyId, 1))
             {
                 ShowMessage("Fuse could not be used.");
                 return;
@@ -132,11 +136,45 @@ public class CircuitBreaker : MonoBehaviour
         _msgCoroutine = StartCoroutine(MessageRoutine(text));
     }
 
-    private System.Collections.IEnumerator MessageRoutine(string text)
+    private IEnumerator MessageRoutine(string text)
     {
         messageRoot.SetActive(true);
         messageText.text = text;
         yield return new WaitForSeconds(messageDuration);
         messageRoot.SetActive(false);
+    }
+
+    // ---------------- Helpers ----------------
+    int SafeGetCount(InventoryLite inv, string key)
+    {
+        if (inv == null || string.IsNullOrEmpty(key)) return 0;
+
+        var mi = inv.GetType().GetMethod("GetCount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
+        if (mi != null && mi.ReturnType == typeof(int)) return (int)mi.Invoke(inv, new object[] { key });
+
+        mi = inv.GetType().GetMethod("CountOf", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
+        if (mi != null && mi.ReturnType == typeof(int)) return (int)mi.Invoke(inv, new object[] { key });
+
+        return 0;
+    }
+
+    bool TryConsume(InventoryLite inv, string key, int amount)
+    {
+        if (inv == null || string.IsNullOrEmpty(key) || amount <= 0) return false;
+
+        var miB = inv.GetType().GetMethod("Consume", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
+        if (miB != null && miB.ReturnType == typeof(bool)) return (bool)miB.Invoke(inv, new object[] { key, amount });
+
+        miB = inv.GetType().GetMethod("Remove", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
+        if (miB != null && miB.ReturnType == typeof(bool)) return (bool)miB.Invoke(inv, new object[] { key, amount });
+
+        var miV = inv.GetType().GetMethod("Add", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(string), typeof(int) }, null);
+        if (miV != null && miV.ReturnType == typeof(void))
+        {
+            miV.Invoke(inv, new object[] { key, -amount });
+            return true;
+        }
+
+        return false;
     }
 }

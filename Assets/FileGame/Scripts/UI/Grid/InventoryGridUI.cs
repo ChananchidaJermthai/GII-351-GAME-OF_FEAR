@@ -14,19 +14,18 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private InventoryLite inventory;
 
     [Header("Panel")]
-    [SerializeField] private GameObject panel;         // แผง Inventory ทั้งชุด (จะ SetActive)
-    [SerializeField] private TMP_Text titleText;       // ข้อความหัวข้อ "INVENTORY" (ถ้ามี)
+    [SerializeField] private GameObject panel;
+    [SerializeField] private TMP_Text titleText;
 
     [Header("Slots")]
-    [Tooltip("ใส่ช่องทั้งหมดตามลำดับซ้าย->ขวา บน->ล่าง (ปล่อยว่างให้ตัวสคริปต์หาอัตโนมัติจากลูกก็ได้)")]
     [SerializeField] private List<InventorySlotUI> slots = new();
 
     [Header("Icons (ID -> Sprite)")]
     [SerializeField] private List<IconMap> iconMaps = new();
 
-    [Header("Open/Close (Hold-to-open)")]
 #if ENABLE_INPUT_SYSTEM
-    [SerializeField] private InputActionProperty holdAction; // type=Button
+    [Header("Open/Close (Hold-to-open)")]
+    [SerializeField] private InputActionProperty holdAction;
     [SerializeField] private bool useDefaultTabIfEmpty = true;
 #endif
 
@@ -35,10 +34,14 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private bool autoRefreshWhileOpen = true;
     [SerializeField, Min(0.05f)] private float autoRefreshInterval = 0.25f;
 
+<<<<<<< Updated upstream
     // runtime
     private readonly Dictionary<string, Sprite> _iconDict =
         new(StringComparer.OrdinalIgnoreCase);
 
+=======
+    private readonly Dictionary<string, Sprite> _iconDict = new(StringComparer.OrdinalIgnoreCase);
+>>>>>>> Stashed changes
     private float _nextRefreshAt = 0f;
     private int _lastHash = 0;
 
@@ -87,6 +90,7 @@ public class InventoryGridUI : MonoBehaviour
     private void Update()
     {
         bool wantOpen = IsHoldPressed();
+
         if (panel && panel.activeSelf != wantOpen)
         {
             panel.SetActive(wantOpen);
@@ -121,11 +125,16 @@ public class InventoryGridUI : MonoBehaviour
         foreach (var s in slots)
             s.SetItem(null, 0, null);
 
+<<<<<<< Updated upstream
         // ✨ เดิมใช้ OrderBy + ToList → ตอนนี้ใช้ buffer + Sort เพื่อลด GC
         _sortedBuffer.Clear();
         var dict = inventory.GetAll();
         foreach (var kv in dict)
             _sortedBuffer.Add(kv);
+=======
+        // Get all items, sort by key
+        var all = inventory.GetAll().OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).ToList();
+>>>>>>> Stashed changes
 
         _sortedBuffer.Sort(_keyComparer);
 
@@ -151,12 +160,17 @@ public class InventoryGridUI : MonoBehaviour
     {
         if (_iconDict.TryGetValue(id, out var sp) && sp) return sp;
         var res = Resources.Load<Sprite>($"Icons/{id}");
+<<<<<<< Updated upstream
         if (res)
         {
             _iconDict[id] = res;
             return res;
         }
         return null;
+=======
+        if (res) _iconDict[id] = res;
+        return res;
+>>>>>>> Stashed changes
     }
 
     private bool UpdateHashIfChanged()
@@ -185,13 +199,10 @@ public class InventoryGridUI : MonoBehaviour
         }
     }
 
-    // ---------- Input System ----------
 #if ENABLE_INPUT_SYSTEM
     private void SetupHoldAction()
     {
-        if (holdAction.reference != null) return;
-        if (_runtimeHoldAction != null) return;
-
+        if (holdAction.reference != null || _runtimeHoldAction != null) return;
         if (useDefaultTabIfEmpty)
         {
             _runtimeHoldAction = new InputAction("HoldInventoryGrid", InputActionType.Button);

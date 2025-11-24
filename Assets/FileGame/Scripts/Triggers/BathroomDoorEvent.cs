@@ -6,52 +6,51 @@ using UnityEngine;
 public class BathroomDoorEvent : MonoBehaviour
 {
     [Header("Door / Focus")]
-    public Transform doorRoot;               // ตัว Transform ของประตู (เขย่า/อนิเมต)
-    public Transform lookTarget;             // จุดให้กล้องโฟกัส (ถ้าเว้นว่างจะใช้ doorRoot)
-    public float lookDuration = 0.2f;        // โฟกัสกล้อง 0.2 วิ ตามโจทย์
-    public float lookRotateSpeed = 12f;      // ความไวในการหมุนไปหาเป้า (ส่งให้ PlayerController3D)
+    public Transform doorRoot;               
+    public Transform lookTarget;             
+    public float lookDuration = 0.2f;       
+    public float lookRotateSpeed = 12f;     
 
     [Header("Audio")]
-    public AudioSource audioSrc;             // แนะนำใส่ AudioSource ที่ประตู
-    public AudioClip knockClip;              // เสียง "เคาะประตู"
-    public AudioClip laughClip;              // เสียง "หัวเราะ"
-    public AudioClip bangClip;               // (ไม่บังคับ) เสียง "กระแทก/เขย่าประตู" แทรกระหว่างหัวเราะ
+    public AudioSource audioSrc;             
+    public AudioClip knockClip;              
+    public AudioClip laughClip;              
+    public AudioClip bangClip;               
 
     [Header("Sanity Gain (+)")]
-    public float sanitySmall = 2f;           // ตอนโฟกัส/ได้ยินเคาะเล็กน้อย
-    public float sanityLarge = 15f;          // ตอนหัวเราะ+ประตูกระแทก เพิ่มมาก
+    public float sanitySmall = 2f;           
+    public float sanityLarge = 15f;          
 
     [Header("Shake While Laughing")]
-    public bool useAnimator = false;         // ถ้ามีแอนิเมชันกระแทก ประตู ให้เปิดแล้วตั้ง trigger ด้านล่าง
+    public bool useAnimator = false;         
     public Animator doorAnimator;
     public string animatorTrigger = "Bang";
 
-    public float shakeDuration = 1.25f;      // ระยะเวลาเขย่ารวม (ถ้าไม่ใช้ Animator)
-    public float shakePosAmp = 0.03f;        // ระยะสั่นตำแหน่ง (เมตร)
-    public float shakeRotAmp = 4f;           // องศาเอียงซ้ายขวา
-    public float shakeFreq = 28f;            // ความถี่การสั่น
+    public float shakeDuration = 1.25f;      
+    public float shakePosAmp = 0.03f;        
+    public float shakeRotAmp = 4f;           
+    public float shakeFreq = 28f;            
 
     [Header("One-shot")]
-    public bool disableColliderAfterPlay = true;   // ป้องกันโดนซ้ำ
-    public bool autoDeactivateAfterPlay = true;    // จบเหตุการณ์แล้วปิดวัตถุ
+    public bool disableColliderAfterPlay = true;   
+    public bool autoDeactivateAfterPlay = true;    
 
-    bool _played = false;
-    Vector3 _doorPos0;
-    Quaternion _doorRot0;
-    Collider _col;
+    private bool _played = false;
+    private Vector3 _doorPos0;
+    private Quaternion _doorRot0;
+    private Collider _col;
 
     void Reset()
     {
-        var c = GetComponent<Collider>();
-        if (c) { c.isTrigger = true; }
-        if (!audioSrc) audioSrc = GetComponent<AudioSource>();
+        if (TryGetComponent(out Collider c)) c.isTrigger = true;
+        if (!audioSrc) TryGetComponent(out audioSrc);
         if (!doorRoot) doorRoot = transform;
         if (!lookTarget) lookTarget = doorRoot;
     }
 
     void Awake()
     {
-        _col = GetComponent<Collider>();
+        if (!TryGetComponent(out _col)) _col = null;
         if (!doorRoot) doorRoot = transform;
         if (!lookTarget) lookTarget = doorRoot;
         _doorPos0 = doorRoot.localPosition;
@@ -61,7 +60,6 @@ public class BathroomDoorEvent : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (_played) return;
-
         if (other.TryGetComponent<PlayerController3D>(out var player))
         {
             _played = true;
@@ -71,39 +69,34 @@ public class BathroomDoorEvent : MonoBehaviour
 
     IEnumerator PlaySequence(PlayerController3D player)
     {
-        // 1) โฟกัสกล้องไปที่ประตู + ล็อกคอนโทรลชั่วคราว (0.2 วิ)
+        // 1) Focus camera
         player.StartLookFollow(lookTarget, lookRotateSpeed, lockControl: true);
         yield return new WaitForSeconds(lookDuration);
         player.StopLookFollow(unlockControl: true);
 
-        // เพิ่ม sanity เล็กน้อย
         if (sanitySmall != 0f) player.AddSanity(sanitySmall);
 
-        // 2) เล่นเสียงเคาะประตู
-        float knockLen = PlayOneShotSafe(knockClip);
-        if (knockLen > 0f) yield return new WaitForSeconds(knockLen);
+        // 2) Play knock sound
+        yield return PlayClip(knockClip);
 
-        // 3) เล่นเสียงหัวเราะ + เขย่าประตู/กระแทก (พร้อมกัน)
-        float laughLen = PlayOneShotSafe(laughClip);
-        // ถ้ามีเสียงกระแทกแยก ให้เล่นซ้ำๆ ระหว่างหัวเราะก็ได้
-        if (bangClip) audioSrc.PlayOneShot(bangClip);
+        // 3) Play laugh + bang
+        var laughRoutine = PlayClip(laughClip);
+        if (bangClip) audioSrc?.PlayOneShot(bangClip);
 
-        // เพิ่ม sanity อย่างมากตอนนี้
         if (sanityLarge != 0f) player.AddSanity(sanityLarge);
 
-        // เล่นแอนิเมชัน หรือสั่นแบบ procedural
         if (useAnimator && doorAnimator)
         {
             doorAnimator.SetTrigger(animatorTrigger);
-            if (laughLen > 0f) yield return new WaitForSeconds(laughLen);
+            yield return laughRoutine;
         }
         else
         {
-            float dur = (laughLen > 0f ? laughLen : shakeDuration);
+            float dur = (laughClip ? laughClip.length : shakeDuration);
             yield return StartCoroutine(ShakeDoor(dur));
         }
 
-        // 4) รีเซ็ตทุกอย่างกลับเหมือนเดิม
+        // 4) Reset
         doorRoot.localPosition = _doorPos0;
         doorRoot.localRotation = _doorRot0;
 
@@ -111,14 +104,13 @@ public class BathroomDoorEvent : MonoBehaviour
         if (autoDeactivateAfterPlay) gameObject.SetActive(false);
     }
 
-    float PlayOneShotSafe(AudioClip clip)
+    IEnumerator PlayClip(AudioClip clip)
     {
         if (audioSrc && clip)
         {
             audioSrc.PlayOneShot(clip);
-            return clip.length;
+            yield return new WaitForSeconds(clip.length);
         }
-        return 0f;
     }
 
     IEnumerator ShakeDoor(float duration)
@@ -128,18 +120,10 @@ public class BathroomDoorEvent : MonoBehaviour
         {
             float t = Time.time - t0;
             float s = Mathf.Sin(t * shakeFreq);
-
-            // ตำแหน่งสั่นเล็กน้อย
-            Vector3 off = new Vector3(s * shakePosAmp, 0f, 0f);
-            // หมุนสั่นเล็กน้อย
-            Quaternion rot = Quaternion.Euler(0f, 0f, s * shakeRotAmp);
-
-            doorRoot.localPosition = _doorPos0 + off;
-            doorRoot.localRotation = _doorRot0 * rot;
-
+            doorRoot.localPosition = _doorPos0 + new Vector3(s * shakePosAmp, 0f, 0f);
+            doorRoot.localRotation = _doorRot0 * Quaternion.Euler(0f, 0f, s * shakeRotAmp);
             yield return null;
         }
-        // คืนค่าเดิม
         doorRoot.localPosition = _doorPos0;
         doorRoot.localRotation = _doorRot0;
     }

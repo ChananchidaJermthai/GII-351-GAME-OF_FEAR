@@ -8,25 +8,37 @@ public class ShelfInteractable : MonoBehaviour
     public Shelf shelf;   // ถ้าเว้นไว้จะหาในพาเรนต์/ตัวเองให้
 
     [Header("UI Prompt")]
-    //public string promp;
     [TextArea] public string promptText = "Press E Open";
 
     void Reset()
     {
+        // หา Shelf ใน parent/ตัวเอง ถ้าไม่ได้ใส่ reference
         if (!shelf) shelf = GetComponentInParent<Shelf>();
+
+        // ตั้งค่า Collider เริ่มต้น
         var col = GetComponent<Collider>();
-        if (col) col.isTrigger = false; // เริ่มต้นให้ไม่ trigger (ปรับได้ตามเกม)
+        if (col) col.isTrigger = false;
     }
 
     void Awake()
     {
+        // หา Shelf ใน parent/ตัวเอง ถ้าไม่ได้ใส่ reference
         if (!shelf) shelf = GetComponentInParent<Shelf>();
+
+        if (!shelf)
+        {
+            Debug.LogWarning("[ShelfInteractable] Shelf not assigned or found in parent.", this);
+        }
     }
 
+    /// <summary>
+    /// เรียกเพื่อ Interact กับ Shelf
+    /// </summary>
     public void TryInteract(GameObject playerGO)
     {
         if (!shelf)
         {
+            // Fallback: หา Shelf อีกครั้ง
             shelf = GetComponentInParent<Shelf>();
             if (!shelf)
             {
@@ -34,6 +46,7 @@ public class ShelfInteractable : MonoBehaviour
                 return;
             }
         }
+
         shelf.TryInteract(playerGO);
     }
 }

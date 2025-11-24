@@ -10,40 +10,21 @@ public class KnockdownTrigger : MonoBehaviour
     public bool oneShot = true;
     public bool disableTriggerAfterRun = true;
 
-    [Header("Target Object (Thing to fall)")]
-    [Tooltip("¡ÓË¹´ÇÑµ¶Ø·Õè¨ÐãËé 'µ¡/ËÅè¹' á¹Ð¹ÓãËéà»ç¹µÑÇ·ÕèÁÕ Rigidbody (àªè¹ ªÑé¹/ªÔé¹¢Í§µ¡)")]
+    [Header("Target Object")]
     public Rigidbody targetRb;
-
-    [Tooltip("¶éÒäÁè¡ÓË¹´ ¨ÐËÑ¹¡ÅéÍ§ä»·Õè Transform ¢Í§ targetRb")]
     public Transform lookAtOverride;
 
     [Header("Push Settings")]
-    [Tooltip("´ÕàÅÂì¡èÍ¹¼ÅÑ¡ (ÇÔ¹Ò·Õ) à¾×èÍ·Ó¨Ñ§ËÇÐËÅÍ¡¼ÙéàÅè¹)")]
     public Vector2 delayBeforePush = new Vector2(0.1f, 0.35f);
-
-    [Tooltip("à»Ô´ gravity ãËéà»éÒËÁÒÂ·Ñ¹·ÕàÁ×èÍàÃÔèÁ¼ÅÑ¡")]
     public bool enableGravityOnPush = true;
-
-    [Tooltip("»Å´ isKinematic àÁ×èÍàÃÔèÁ¼ÅÑ¡ (¶éÒ Rigidbody à»ç¹¤Ôà¹ÁÒµÔ¡ÍÂÙè)")]
     public bool disableKinematicOnPush = true;
-
-    [Tooltip("áÃ§¼ÅÑ¡â´ÂÃÇÁ (·ÔÈ·Ò§ã¹á¡¹ local ËÃ×Í world µÒÁ useLocalDirection)")]
     public float pushForce = 4f;
-
-    [Tooltip("·ÔÈ·Ò§áÃ§¼ÅÑ¡ (»¡µÔãªéÅ§/à©ÕÂ§)")]
     public Vector3 pushDirection = new Vector3(0.2f, -1f, 0f);
-
-    [Tooltip("ãªéá¡¹ local ¢Í§ÇÑµ¶Øà»éÒËÁÒÂã¹¡ÒÃ¤Ù³·ÔÈ·Ò§áÃ§")]
     public bool useLocalDirection = false;
-
-    [Tooltip("áÃ§ºÔ´ (»Ñè¹ãËé¢Í§ËÁØ¹)")]
     public Vector3 torqueImpulse = new Vector3(0f, 0f, 0.5f);
 
     [Header("Camera / Control")]
-    [Tooltip("¤ÇÒÁäÇ¡ÒÃËÑ¹µÒÁ (ãªé¡Ñº PlayerController3D.StartLookFollow)")]
     public float followRotateSpeed = 8f;
-
-    [Tooltip("àÇÅÒË¹èÇ§àÅç¡¹éÍÂËÅÑ§¼ÅÑ¡ ¡èÍ¹¤×¹¤Í¹â·ÃÅ")]
     public float holdAfterPush = 0.5f;
 
     [Header("Audio")]
@@ -51,8 +32,8 @@ public class KnockdownTrigger : MonoBehaviour
     [Range(0f, 1f)] public float sfxVolume = 1f;
 
     // runtime
-    AudioSource _audio;
-    bool _fired;
+    private AudioSource _audio;
+    private bool _fired;
 
     void Awake()
     {
@@ -76,7 +57,7 @@ public class KnockdownTrigger : MonoBehaviour
         if (_fired && oneShot) return;
         if (!other.CompareTag(playerTag)) return;
 
-        var playerRoot = other.GetComponentInParent<Transform>();
+        Transform playerRoot = other.transform;
         if (!playerRoot) return;
 
         _fired = true;
@@ -85,25 +66,21 @@ public class KnockdownTrigger : MonoBehaviour
         StartCoroutine(RunSequence(playerRoot));
     }
 
-    IEnumerator RunSequence(Transform player)
+    private IEnumerator RunSequence(Transform player)
     {
-        // 1) àµÃÕÂÁ look target
-        Transform lookTarget = lookAtOverride;
-        if (!lookTarget && targetRb) lookTarget = targetRb.transform;
-
-        // 2) ÅçÍ¡¤Í¹â·ÃÅ + ãËé¡ÅéÍ§ËÑ¹µÒÁÇÑµ¶Ø
+        // 1) กล้องมองเป้าหมาย
+        Transform lookTarget = lookAtOverride ? lookAtOverride : targetRb?.transform;
         var pc = player.GetComponent<PlayerController3D>();
-        if (pc && lookTarget)
-            pc.StartLookFollow(lookTarget, followRotateSpeed, true);
+        if (pc && lookTarget) pc.StartLookFollow(lookTarget, followRotateSpeed, lockControl: true);
 
-        // 3) ÃÍ´ÕàÅÂìÊØèÁ¡èÍ¹¼ÅÑ¡ (à¾×èÍÊÃéÒ§¨Ñ§ËÇÐÅÇ§/µ¡ã¨)
+        // 2) รอ delay ก่อนผลัก
         float wait = Mathf.Clamp(Random.Range(delayBeforePush.x, delayBeforePush.y), 0f, 10f);
         if (wait > 0f) yield return new WaitForSeconds(wait);
 
-        // 4) ¼ÅÑ¡¢Í§ãËéµ¡
+        // 3) ผลัก/เขย่า Rigidbody
         DoKnockdown();
 
-        // 5) àÅè¹àÊÕÂ§ ³ ¨Ø´·Õè¢Í§µ¡
+        // 4) เสียงตก/ล้ม
         if (fallSfx)
         {
             Vector3 pos = targetRb ? targetRb.transform.position : transform.position;
@@ -112,28 +89,25 @@ public class KnockdownTrigger : MonoBehaviour
             AmbientRoomAudioManager.FocusDuck(0.15f, 0.04f, 1.6f, 2f);
         }
 
-        // 6) ¤éÒ§¡ÅéÍ§ÍÕ¡àÅç¡¹éÍÂ áÅéÇ¤×¹¤Í¹â·ÃÅ
+        // 5) รอ hold หลัง push
         if (holdAfterPush > 0f) yield return new WaitForSeconds(holdAfterPush);
-        if (pc) pc.StopLookFollow(true);
+        if (pc) pc.StopLookFollow(unlockControl: true);
     }
 
-    void DoKnockdown()
+    private void DoKnockdown()
     {
         if (!targetRb)
         {
-            Debug.LogWarning("[KnockdownTrigger] targetRb äÁè¶Ù¡¡ÓË¹´");
+            Debug.LogWarning("[KnockdownTrigger] targetRb ไม่ถูกกำหนด!");
             return;
         }
 
         if (disableKinematicOnPush) targetRb.isKinematic = false;
         if (enableGravityOnPush) targetRb.useGravity = true;
 
-        // ¤Ó¹Ç³·ÔÈ·Ò§áÃ§
-        Vector3 dir = pushDirection;
+        Vector3 dir = pushDirection.normalized;
         if (useLocalDirection) dir = targetRb.transform.TransformDirection(dir);
-        dir = dir.normalized;
 
-        // ãÊèáÃ§/áÃ§ºÔ´áºº impulse
         if (pushForce > 0f) targetRb.AddForce(dir * pushForce, ForceMode.Impulse);
         if (torqueImpulse.sqrMagnitude > 0f) targetRb.AddTorque(torqueImpulse, ForceMode.Impulse);
     }
@@ -144,9 +118,7 @@ public class KnockdownTrigger : MonoBehaviour
         if (!targetRb) return;
         Gizmos.color = Color.yellow;
         Vector3 from = targetRb.transform.position;
-        Vector3 dir = useLocalDirection
-            ? targetRb.transform.TransformDirection(pushDirection)
-            : pushDirection;
+        Vector3 dir = useLocalDirection ? targetRb.transform.TransformDirection(pushDirection) : pushDirection;
         Gizmos.DrawRay(from, dir.normalized * Mathf.Max(0.5f, pushForce * 0.25f));
     }
 #endif

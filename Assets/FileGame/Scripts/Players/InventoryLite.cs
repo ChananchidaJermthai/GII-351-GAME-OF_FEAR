@@ -2,12 +2,18 @@
 using System.Linq;
 using UnityEngine;
 
+/// <summary>
+/// InventoryLite: ระบบเก็บไอเท็มเรียบง่าย
+/// - รองรับ Add / Consume / GetCount
+/// - แสดงผลใน Inspector
+/// - รองรับค่าเริ่มต้นและจัดเรียงตาม ID
+/// </summary>
 public class InventoryLite : MonoBehaviour
 {
-    // ====== Runtime store (ใช้งานจริง) ======
+    // ====== Runtime store ======
     private readonly Dictionary<string, int> counts = new Dictionary<string, int>();
 
-    // ====== สำหรับ "ดู" ใน Inspector ======
+    // ====== Inspector View ======
     [System.Serializable]
     public struct ItemEntry
     {
@@ -15,16 +21,16 @@ public class InventoryLite : MonoBehaviour
         public int count;
     }
 
-    [Header("Inspector View (อ่านค่าได้)")]
+    [Header("Inspector View (อ่านค่า)")]
     [SerializeField] private List<ItemEntry> view = new List<ItemEntry>();
     [SerializeField] private bool sortViewById = true;
 
-    [Header("Initial Items (ใส่ค่าเริ่มต้นได้ถ้าต้องการ)")]
+    [Header("Initial Items (เริ่มต้น)")]
     [SerializeField] private List<ItemEntry> initialItems = new List<ItemEntry>();
 
     void Awake()
     {
-        // โหลดค่าเริ่มต้น (ถ้าใส่ไว้ใน Inspector)
+        // โหลดค่าเริ่มต้น
         if (initialItems != null)
         {
             foreach (var e in initialItems)
@@ -37,7 +43,7 @@ public class InventoryLite : MonoBehaviour
         RefreshView();
     }
 
-    // ---------- Public API ----------
+    // ====== Public API ======
     public void AddItem(string id, int amount = 1)
     {
         if (string.IsNullOrEmpty(id) || amount <= 0) return;
@@ -71,7 +77,7 @@ public class InventoryLite : MonoBehaviour
         RefreshView();
     }
 
-    // ---------- Inspector Helpers ----------
+    // ====== Inspector Helpers ======
     [ContextMenu("Rebuild View (Editor)")]
     private void RebuildViewInEditor() => RefreshView();
 
@@ -84,9 +90,6 @@ public class InventoryLite : MonoBehaviour
         if (sortViewById) src = src.OrderBy(kv => kv.Key);
 
         foreach (var kv in src)
-        {
             view.Add(new ItemEntry { id = kv.Key, count = kv.Value });
-        }
-        // หมายเหตุ: view มีไว้ "ดู" อย่างเดียว ไม่เขียนกลับ counts เพื่อกันข้อมูลเพี้ยน
     }
 }

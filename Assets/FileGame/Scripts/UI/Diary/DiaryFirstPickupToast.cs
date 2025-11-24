@@ -17,24 +17,30 @@ public class DiaryFirstPickupToast : MonoBehaviour
 
     [Header("Timing")]
     [Tooltip("เวลาที่แสดง (วินาที)")]
-    public float showDuration = 1.5f;        // ตั้ง 1–2 วินาทีตามต้องการ
+    public float showDuration = 1.5f;
 
     [Header("Optional")]
     public AudioSource audioSrc;
-    public AudioClip sfxShow;                // เสียงตอนขึ้นข้อความ (ถ้ามี)
+    public AudioClip sfxShow;
 
-    bool _alreadyShown;                      // กันแสดงซ้ำ
-    int _lastCount;
+    // runtime
+    private bool _alreadyShown;
+    private int _lastCount;
 
     void Awake()
     {
-        if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
+        // หาผู้เล่น/Inventory แบบปลอดภัย
+        if (!inventory)
+        {
+            inventory = FindFirstObjectByType<InventoryLite>();
+            if (!inventory) inventory = FindObjectOfType<InventoryLite>();
+        }
+
         if (toastRoot) toastRoot.SetActive(false);
         if (toastText) toastText.text = message;
 
-        // บันทึกจำนวนเริ่มต้น เพื่อดูการเปลี่ยนจาก 0 -> 1
         _lastCount = inventory ? inventory.GetCount(diaryItemId) : 0;
-        _alreadyShown = _lastCount >= requiredCount; // ถ้าเริ่มเกมมีอยู่แล้ว จะไม่แสดงซ้ำ
+        _alreadyShown = _lastCount >= requiredCount;
     }
 
     void Update()
@@ -42,26 +48,32 @@ public class DiaryFirstPickupToast : MonoBehaviour
         if (_alreadyShown || inventory == null) return;
 
         int now = inventory.GetCount(diaryItemId);
+
+        // Trigger แสดงครั้งเดียวเมื่อเก็บครบ threshold
         if (_lastCount < requiredCount && now >= requiredCount)
         {
-            // เปลี่ยนผ่าน threshold → แสดงครั้งเดียว
             ShowOnce();
         }
+
         _lastCount = now;
     }
 
-    /// เรียกเองจากสคริปต์เก็บของก็ได้ (ถ้าอยากทริกเกอร์ตรงนั้น)
+    /// <summary>
+    /// เรียกเองจากสคริปต์ก็ได้ เพื่อแสดง toast
+    /// </summary>
     public void ShowOnce()
     {
         if (_alreadyShown) return;
+
         _alreadyShown = true;
         StartCoroutine(Co_ShowToast());
     }
 
-    IEnumerator Co_ShowToast()
+    private IEnumerator Co_ShowToast()
     {
         if (toastText) toastText.text = message;
         if (toastRoot) toastRoot.SetActive(true);
+
         if (audioSrc && sfxShow) audioSrc.PlayOneShot(sfxShow);
 
         yield return new WaitForSeconds(showDuration);
