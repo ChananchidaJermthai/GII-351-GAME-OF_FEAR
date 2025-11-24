@@ -109,13 +109,21 @@ public class GhostCrawlerTunnel : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        Debug.Log("Ghost OnTriggerEnter with: " + other.name);
+
         if (!isChasing) return;
         if (!other.CompareTag("Player")) return;
 
-        JumpScareSpawnInFront.Instance.PlayScare();
+        Debug.Log("Hit player! call jumpscare");
+
+        if (JumpScareSpawnInFront.Instance != null)
+            JumpScareSpawnInFront.Instance.PlayScare();
+        else
+            Debug.LogWarning("JumpScareSpawnInFront.Instance เป็น null");
 
         StopChase();
     }
+
 
     private void StopChase()
     {

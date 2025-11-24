@@ -7,7 +7,7 @@ public class JumpScareSpawnInFront : MonoBehaviour
     public static JumpScareSpawnInFront Instance;
 
     [Header("Spawn Settings")]
-    public Transform jumpScareRoot;
+    public Transform EventRoot;
     public GameObject monsterPrefab;
     public float heightOffset = -1.5f;
     public float forwardOffset = 0f;
@@ -46,11 +46,17 @@ public class JumpScareSpawnInFront : MonoBehaviour
             if (colorAdjust != null)
                 originalIntensity = colorAdjust.postExposure.value;
         }
+        globalVolume = FindAnyObjectByType<Volume>();
+        if (EventRoot == null)
+        {
+            EventRoot = GameObject.FindGameObjectWithTag("EventRoot")?.transform;
+
+        }
     }
 
     public void PlayScare()
     {
-        if (jumpScareRoot == null || monsterPrefab == null)
+        if (EventRoot == null || monsterPrefab == null)
         {
             Debug.LogWarning("JumpScareSpawnInFront: settings missing!");
             return;
@@ -58,18 +64,18 @@ public class JumpScareSpawnInFront : MonoBehaviour
 
         // 1) spawn ตำแหน่ง
         Vector3 spawnPos =
-            jumpScareRoot.position +
-            jumpScareRoot.up * heightOffset +
-            jumpScareRoot.forward * forwardOffset;
+            EventRoot.position +
+            EventRoot.up * heightOffset +
+            EventRoot.forward * forwardOffset;
 
-        Quaternion spawnRot = jumpScareRoot.rotation;
+        Quaternion spawnRot = EventRoot.rotation;
 
         // 2) spawn ผี
         spawnedMonster = Instantiate(
             monsterPrefab,
             spawnPos,
             spawnRot,
-            jumpScareRoot
+            EventRoot
         );
 
         // 3) animation

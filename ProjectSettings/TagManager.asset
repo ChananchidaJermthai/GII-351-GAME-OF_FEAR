@@ -6,6 +6,7 @@ TagManager:
   tags:
   - CallGhost
   - Metal
+  - EventRoot
   layers:
   - Default
   - TransparentFX

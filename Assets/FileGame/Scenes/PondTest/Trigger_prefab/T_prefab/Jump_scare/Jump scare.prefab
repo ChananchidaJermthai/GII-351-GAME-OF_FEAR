@@ -46,10 +46,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JumpScareSpawnInFront
   jumpScareRoot: {fileID: 0}
-  monsterPrefab: {fileID: 2832305242668764695, guid: bbb2d2adf3f53194299b3774d683b288, type: 3}
-  heightOffset: -6.5
-  forwardOffset: -0.5
+  monsterPrefab: {fileID: 1800123135824791363, guid: 2704304e2d03458439344c80264154d8, type: 3}
+  heightOffset: -7
+  forwardOffset: -0.2
   autoDestroyAfter: 3
+  sanityApplier: {fileID: 0}
+  damage: 10
   scareTriggerName: Scare
   scareAudioSource: {fileID: 0}
   scareClip: {fileID: 8300000, guid: e20b8782400571c44a3a867b6c66de28, type: 3}
@@ -102,7 +104,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4923116996003864106}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 35.578846, y: 0.8283284, z: 56.156452}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
