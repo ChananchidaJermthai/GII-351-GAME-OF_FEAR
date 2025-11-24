@@ -3035,10 +3035,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: GhostTunnel
       objectReference: {fileID: 0}
-    - target: {fileID: 277678642555731147, guid: d6a1e7bdf38275644a26250de5af5337, type: 3}
-      propertyPath: m_Enabled
-      value: 1
+    - target: {fileID: 841549004693376085, guid: d6a1e7bdf38275644a26250de5af5337, type: 3}
+      propertyPath: speed
+      value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 841549004693376085, guid: d6a1e7bdf38275644a26250de5af5337, type: 3}
+      propertyPath: metalHitSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: e3998ba7030f63b41b109363a2362765, type: 3}
+    - target: {fileID: 841549004693376085, guid: d6a1e7bdf38275644a26250de5af5337, type: 3}
+      propertyPath: crawlLoopSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: baf12567c072de24682c18541ed8b3c5, type: 3}
     - target: {fileID: 1186792041153300439, guid: d6a1e7bdf38275644a26250de5af5337, type: 3}
       propertyPath: m_LocalPosition.x
       value: 16.107769

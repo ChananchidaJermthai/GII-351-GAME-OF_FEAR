@@ -420,8 +420,8 @@ MonoBehaviour:
   speed: 5
   ghostModel: {fileID: 9049243622434122949}
   audioSource: {fileID: 193076814693241579}
-  metalHitSFX: {fileID: 0}
-  crawlLoopSFX: {fileID: 0}
+  metalHitSFX: {fileID: 8300000, guid: e3998ba7030f63b41b109363a2362765, type: 3}
+  crawlLoopSFX: {fileID: 8300000, guid: baf12567c072de24682c18541ed8b3c5, type: 3}
   autoFaceDirection: 0
 --- !u!65 &4701336142724401695
 BoxCollider:
