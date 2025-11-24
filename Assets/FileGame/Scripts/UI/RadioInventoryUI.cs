@@ -18,7 +18,7 @@ public class RadioInventoryUI : MonoBehaviour
     public float autoCloseDistance = 4f;
 
     [Header("Cursor & Lock")]
-    public bool lockLookOnOpen = true;
+    public bool lockLookOnOpen = true;  // เปิดไว้เพื่อล็อกกล้องไม่ให้หันตามเมาส์ตอน UI นี้โชว์
     public bool lockMoveOnOpen = false;
 
 #if ENABLE_INPUT_SYSTEM
@@ -310,15 +310,24 @@ public class RadioInventoryUI : MonoBehaviour
     }
 
     // ---------- Freeze/Unfreeze player controls ----------
+    // ---------- Freeze/Unfreeze player controls ----------
     void TryFreezePlayerControls(bool freeze)
     {
         if (_playerTf == null) return;
 
         if (_playerCtrl == null)
         {
+            // เดิม: พยายามหาจาก PlayerControllerTest
             var playerType = System.Type.GetType("PlayerControllerTest");
             if (playerType != null)
                 _playerCtrl = _playerTf.GetComponentInParent(playerType);
+
+            // เพิ่ม: รองรับ PlayerController3D ด้วย (ของโปรเจกต์ Game Of Fear)
+            if (_playerCtrl == null)
+            {
+                var pc3d = _playerTf.GetComponentInParent<PlayerController3D>();
+                if (pc3d != null) _playerCtrl = pc3d;
+            }
         }
         if (_playerCtrl == null) return;
 
@@ -326,14 +335,21 @@ public class RadioInventoryUI : MonoBehaviour
 
         void SetFloat(string name, ref float backup, float newVal)
         {
-            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup < 0f) backup = (float)f.GetValue(_playerCtrl);
             f.SetValue(_playerCtrl, newVal);
         }
+
         void Restore(string name, ref float backup)
         {
-            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup >= 0f) f.SetValue(_playerCtrl, backup);
             backup = -1f;
@@ -343,8 +359,12 @@ public class RadioInventoryUI : MonoBehaviour
         {
             if (lockLookOnOpen)
             {
+                // รองรับทั้งชื่อเก่าและชื่อของ PlayerController3D
                 SetFloat("mouseSensitivityX", ref _prevMouseX, 0f);
+                SetFloat("sensX", ref _prevMouseX, 0f);
+
                 SetFloat("mouseSensitivityY", ref _prevMouseY, 0f);
+                SetFloat("sensY", ref _prevMouseY, 0f);
             }
             if (lockMoveOnOpen)
             {
@@ -358,7 +378,10 @@ public class RadioInventoryUI : MonoBehaviour
             if (lockLookOnOpen)
             {
                 Restore("mouseSensitivityX", ref _prevMouseX);
+                Restore("sensX", ref _prevMouseX);
+
                 Restore("mouseSensitivityY", ref _prevMouseY);
+                Restore("sensY", ref _prevMouseY);
             }
             if (lockMoveOnOpen)
             {
@@ -368,4 +391,5 @@ public class RadioInventoryUI : MonoBehaviour
             }
         }
     }
+
 }
