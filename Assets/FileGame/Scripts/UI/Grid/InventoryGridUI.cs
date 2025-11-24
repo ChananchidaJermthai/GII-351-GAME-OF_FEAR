@@ -35,11 +35,14 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField, Min(0.05f)] private float autoRefreshInterval = 0.25f;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // runtime
     private readonly Dictionary<string, Sprite> _iconDict =
         new(StringComparer.OrdinalIgnoreCase);
 
 =======
+=======
+>>>>>>> Stashed changes
     private readonly Dictionary<string, Sprite> _iconDict = new(StringComparer.OrdinalIgnoreCase);
 >>>>>>> Stashed changes
     private float _nextRefreshAt = 0f;
@@ -126,12 +129,15 @@ public class InventoryGridUI : MonoBehaviour
             s.SetItem(null, 0, null);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         // ✨ เดิมใช้ OrderBy + ToList → ตอนนี้ใช้ buffer + Sort เพื่อลด GC
         _sortedBuffer.Clear();
         var dict = inventory.GetAll();
         foreach (var kv in dict)
             _sortedBuffer.Add(kv);
 =======
+=======
+>>>>>>> Stashed changes
         // Get all items, sort by key
         var all = inventory.GetAll().OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).ToList();
 >>>>>>> Stashed changes
@@ -161,12 +167,17 @@ public class InventoryGridUI : MonoBehaviour
         if (_iconDict.TryGetValue(id, out var sp) && sp) return sp;
         var res = Resources.Load<Sprite>($"Icons/{id}");
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         if (res)
         {
             _iconDict[id] = res;
             return res;
         }
         return null;
+=======
+        if (res) _iconDict[id] = res;
+        return res;
+>>>>>>> Stashed changes
 =======
         if (res) _iconDict[id] = res;
         return res;

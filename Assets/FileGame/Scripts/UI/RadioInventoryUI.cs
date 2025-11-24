@@ -64,8 +64,12 @@ public class RadioInventoryUI : MonoBehaviour
     void OnDisable()
     {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
+=======
+        CloseSafe();
+>>>>>>> Stashed changes
 =======
         CloseSafe();
 >>>>>>> Stashed changes
@@ -88,6 +92,7 @@ public class RadioInventoryUI : MonoBehaviour
         if (radio == null || radio.playerInventory == null || buttonPrefab == null || buttonsParent == null)
         {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             Debug.LogError("[RadioInventoryUI] Open(): radio เป็น null");
             return;
         }
@@ -103,6 +108,9 @@ public class RadioInventoryUI : MonoBehaviour
         if (buttonsParent == null)
         {
             Debug.LogError("[RadioInventoryUI] buttonsParent เป็น null (โปรดลากคอนเทนเนอร์ที่มี Vertical Layout Group)", this);
+=======
+            Debug.LogError("[RadioInventoryUI] Open(): Missing required references");
+>>>>>>> Stashed changes
 =======
             Debug.LogError("[RadioInventoryUI] Open(): Missing required references");
 >>>>>>> Stashed changes
@@ -128,6 +136,7 @@ public class RadioInventoryUI : MonoBehaviour
         if (panelRoot) panelRoot.SetActive(true);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         // เซฟสถานะ cursor เฉพาะตอนเปลี่ยนจาก “ปิด → เปิด”
         if (!_cursorOverridden)
         {
@@ -136,6 +145,8 @@ public class RadioInventoryUI : MonoBehaviour
         }
 
 =======
+=======
+>>>>>>> Stashed changes
         // Cursor backup
         _prevLock = Cursor.lockState;
         _prevVisible = Cursor.visible;
@@ -151,8 +162,13 @@ public class RadioInventoryUI : MonoBehaviour
     public void Close()
     {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
+=======
+        if (!IsOpen) return;
+        CloseSafe();
+>>>>>>> Stashed changes
 =======
         if (!IsOpen) return;
         CloseSafe();
@@ -233,7 +249,11 @@ public class RadioInventoryUI : MonoBehaviour
         {
             var t = _radio.tapes[i];
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             int cnt = _radio.playerInventory ? _radio.playerInventory.GetCount(t.tapeKeyId) : 0;
+=======
+            int cnt = _radio.playerInventory?.GetCount(t.tapeKeyId) ?? 0;
+>>>>>>> Stashed changes
 =======
             int cnt = _radio.playerInventory?.GetCount(t.tapeKeyId) ?? 0;
 >>>>>>> Stashed changes
@@ -277,10 +297,15 @@ public class RadioInventoryUI : MonoBehaviour
         else
         {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             SetHeader("Select the tape you want to play.");
             SetHint(enableNumberHotkeys
                 ? "Click the button or press the numbers 1–9 • ESC to close."
                 : "Click the button to select • ESC to close.");
+=======
+            SetHeader("Select a tape to play.");
+            SetHint(enableNumberHotkeys ? "Click button or press 1–9 • ESC to close" : "Click button • ESC to close");
+>>>>>>> Stashed changes
 =======
             SetHeader("Select a tape to play.");
             SetHint(enableNumberHotkeys ? "Click button or press 1–9 • ESC to close" : "Click button • ESC to close");
@@ -290,6 +315,7 @@ public class RadioInventoryUI : MonoBehaviour
 
     void ClearButtons()
     {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
         // 🔹 แทน Destroy: แค่ซ่อน + reset onClick เพื่อลด GC และการจองแรมใหม่
         foreach (var b in _spawned)
@@ -303,6 +329,8 @@ public class RadioInventoryUI : MonoBehaviour
         SetHeader("");
         SetHint("");
 =======
+=======
+>>>>>>> Stashed changes
         foreach (var b in _spawned)
         {
             if (b)
@@ -360,7 +388,10 @@ public class RadioInventoryUI : MonoBehaviour
     }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // ---------- Freeze/Unfreeze player controls ----------
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     void TryFreezePlayerControls(bool freeze)
@@ -371,9 +402,13 @@ public class RadioInventoryUI : MonoBehaviour
         {
             var playerType = System.Type.GetType("PlayerControllerTest");
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             if (playerType != null)
                 _playerCtrl = _playerTf.GetComponentInParent(playerType);
 
+=======
+            _playerCtrl = playerType != null ? _playerTf.GetComponentInParent(playerType) : null;
+>>>>>>> Stashed changes
 =======
             _playerCtrl = playerType != null ? _playerTf.GetComponentInParent(playerType) : null;
 >>>>>>> Stashed changes

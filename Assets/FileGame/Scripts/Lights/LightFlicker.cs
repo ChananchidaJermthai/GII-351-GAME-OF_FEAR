@@ -6,7 +6,11 @@ public class LightFlicker : MonoBehaviour
 {
     [Header("Target Light")]
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     public Light targetLight;
+=======
+    public Light targetLight;                   // ถ้าเว้นไว้จะดึงจากตัวเอง
+>>>>>>> Stashed changes
 =======
     public Light targetLight;                   // ถ้าเว้นไว้จะดึงจากตัวเอง
 >>>>>>> Stashed changes
@@ -28,8 +32,13 @@ public class LightFlicker : MonoBehaviour
 
     [Header("Sound on flicker")]
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     public AudioSource audioSource;
     public AudioClip flickerClip;
+=======
+    public AudioSource audioSource;             
+    public AudioClip flickerClip;               
+>>>>>>> Stashed changes
 =======
     public AudioSource audioSource;             
     public AudioClip flickerClip;               
@@ -42,6 +51,9 @@ public class LightFlicker : MonoBehaviour
     [Header("Optional: Emission")]
 =======
     [Header("Optional: Emission (for meshes near the lamp)")]
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     public Renderer emissiveRenderer;
     public Color emissionOn = Color.white;
@@ -59,8 +71,12 @@ public class LightFlicker : MonoBehaviour
     {
         if (!targetLight) targetLight = GetComponent<Light>();
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         if (targetLight)
             _originalIntensity = targetLight.intensity;
+=======
+        if (targetLight) _originalIntensity = targetLight.intensity;
+>>>>>>> Stashed changes
 =======
         if (targetLight) _originalIntensity = targetLight.intensity;
 >>>>>>> Stashed changes
@@ -71,7 +87,11 @@ public class LightFlicker : MonoBehaviour
             audioSource.playOnAwake = false;
             audioSource.loop = false;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             audioSource.spatialBlend = 1f;
+=======
+            audioSource.spatialBlend = 1f; // 3D
+>>>>>>> Stashed changes
 =======
             audioSource.spatialBlend = 1f; // 3D
 >>>>>>> Stashed changes
@@ -117,10 +137,13 @@ public class LightFlicker : MonoBehaviour
         if (_co != null) StopCoroutine(_co);
         _co = null;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
         if (targetLight) targetLight.intensity = onIntensity;
         SetupEmission(emissionOn);
 =======
+=======
+>>>>>>> Stashed changes
         if (targetLight) targetLight.intensity = onIntensity;
         SetupEmission(emissiveRenderer, emissionOn);
 >>>>>>> Stashed changes
@@ -170,7 +193,11 @@ public class LightFlicker : MonoBehaviour
             t += Time.deltaTime;
             float k = Mathf.Clamp01(t / fadeSeconds);
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             k = k * k * (3f - 2f * k);
+=======
+            k = k * k * (3f - 2f * k); // easeInOut
+>>>>>>> Stashed changes
 =======
             k = k * k * (3f - 2f * k); // easeInOut
 >>>>>>> Stashed changes
