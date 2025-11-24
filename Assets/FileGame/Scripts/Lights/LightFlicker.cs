@@ -5,15 +5,8 @@ using UnityEngine;
 public class LightFlicker : MonoBehaviour
 {
     [Header("Target Light")]
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     public Light targetLight;
-=======
-    public Light targetLight;                   // ถ้าเว้นไว้จะดึงจากตัวเอง
->>>>>>> Stashed changes
-=======
-    public Light targetLight;                   // ถ้าเว้นไว้จะดึงจากตัวเอง
->>>>>>> Stashed changes
+
     public float onIntensity = 1f;
     public float offIntensity = 0f;
 
@@ -31,30 +24,13 @@ public class LightFlicker : MonoBehaviour
     public bool playOnStart = true;
 
     [Header("Sound on flicker")]
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     public AudioSource audioSource;
     public AudioClip flickerClip;
-=======
-    public AudioSource audioSource;             
-    public AudioClip flickerClip;               
->>>>>>> Stashed changes
-=======
-    public AudioSource audioSource;             
-    public AudioClip flickerClip;               
->>>>>>> Stashed changes
     [Range(0f, 1f)] public float sfxVolume = 0.8f;
     [Range(0f, 0.3f)] public float pitchJitter = 0.05f;
     public bool playOnlyOnTurnOn = true;
 
-<<<<<<< Updated upstream
-    [Header("Optional: Emission")]
-=======
     [Header("Optional: Emission (for meshes near the lamp)")]
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     public Renderer emissiveRenderer;
     public Color emissionOn = Color.white;
     public Color emissionOff = Color.black;
@@ -64,37 +40,23 @@ public class LightFlicker : MonoBehaviour
     bool _running;
     Coroutine _co;
 
-    // 🔹 cache materials เพื่อไม่ให้สร้างใหม่เรื่อย ๆ
+    // cache materials เพื่อไม่ให้สร้างใหม่เรื่อย ๆ
     Material[] _emissionMats;
 
     void Awake()
     {
-        if (!targetLight) targetLight = GetComponent<Light>();
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+        if (!targetLight)
+            targetLight = GetComponent<Light>();
+
         if (targetLight)
             _originalIntensity = targetLight.intensity;
-=======
-        if (targetLight) _originalIntensity = targetLight.intensity;
->>>>>>> Stashed changes
-=======
-        if (targetLight) _originalIntensity = targetLight.intensity;
->>>>>>> Stashed changes
 
         if (!audioSource)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.loop = false;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             audioSource.spatialBlend = 1f;
-=======
-            audioSource.spatialBlend = 1f; // 3D
->>>>>>> Stashed changes
-=======
-            audioSource.spatialBlend = 1f; // 3D
->>>>>>> Stashed changes
         }
 
         // ดึง materials แค่ครั้งเดียว
@@ -107,7 +69,8 @@ public class LightFlicker : MonoBehaviour
 
     void OnEnable()
     {
-        if (playOnStart) StartFlicker();
+        if (playOnStart)
+            StartFlicker();
     }
 
     void OnDisable()
@@ -118,7 +81,9 @@ public class LightFlicker : MonoBehaviour
 
     void RestoreDefaults()
     {
-        if (targetLight) targetLight.intensity = _originalIntensity;
+        if (targetLight)
+            targetLight.intensity = _originalIntensity;
+
         SetupEmission(emissionOff);
     }
 
@@ -136,17 +101,11 @@ public class LightFlicker : MonoBehaviour
         _running = false;
         if (_co != null) StopCoroutine(_co);
         _co = null;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-        if (targetLight) targetLight.intensity = onIntensity;
+        if (targetLight)
+            targetLight.intensity = onIntensity;
+
         SetupEmission(emissionOn);
-=======
-=======
->>>>>>> Stashed changes
-        if (targetLight) targetLight.intensity = onIntensity;
-        SetupEmission(emissiveRenderer, emissionOn);
->>>>>>> Stashed changes
     }
 
     IEnumerator CoFlicker()
@@ -188,28 +147,23 @@ public class LightFlicker : MonoBehaviour
         float start = targetLight.intensity;
         float end = turnOn ? onIntensity : offIntensity;
         float t = 0f;
+
         while (t < fadeSeconds)
         {
             t += Time.deltaTime;
             float k = Mathf.Clamp01(t / fadeSeconds);
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            k = k * k * (3f - 2f * k);
-=======
-            k = k * k * (3f - 2f * k); // easeInOut
->>>>>>> Stashed changes
-=======
-            k = k * k * (3f - 2f * k); // easeInOut
->>>>>>> Stashed changes
+            k = k * k * (3f - 2f * k); // smoothstep
             targetLight.intensity = Mathf.Lerp(start, end, k);
             yield return null;
         }
+
         targetLight.intensity = end;
     }
 
     void SetupEmission(Color c)
     {
         if (_emissionMats == null) return;
+
         foreach (var mat in _emissionMats)
         {
             if (!mat) continue;
