@@ -36,20 +36,30 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField, Min(0.05f)] private float autoRefreshInterval = 0.25f;
 
     // runtime
-    private readonly Dictionary<string, Sprite> _iconDict = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Sprite> _iconDict =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private float _nextRefreshAt = 0f;
     private int _lastHash = 0;
+
+    // 🔹 buffer สำหรับ sort ลด GC แทนการใช้ OrderBy().ToList()
+    private readonly List<KeyValuePair<string, int>> _sortedBuffer = new();
+
 #if ENABLE_INPUT_SYSTEM
     private InputAction _runtimeHoldAction;
 #endif
 
     [Serializable] public struct IconMap { public string id; public Sprite sprite; }
 
+    private static readonly IComparer<KeyValuePair<string, int>> _keyComparer =
+        Comparer<KeyValuePair<string, int>>.Create(
+            (a, b) => string.Compare(a.Key, b.Key, StringComparison.OrdinalIgnoreCase)
+        );
+
     private void Awake()
     {
         if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
 
-        // ถ้าไม่ได้ลาก slots มา ให้หาจากลูกทั้งหมด (ลำดับตาม Hierarchy)
         if (slots == null || slots.Count == 0)
             slots = new List<InventorySlotUI>(GetComponentsInChildren<InventorySlotUI>(true));
 
@@ -65,6 +75,7 @@ public class InventoryGridUI : MonoBehaviour
         if (act != null) act.Enable();
 #endif
     }
+
     private void OnDisable()
     {
 #if ENABLE_INPUT_SYSTEM
@@ -75,18 +86,22 @@ public class InventoryGridUI : MonoBehaviour
 
     private void Update()
     {
-        // Hold to open
         bool wantOpen = IsHoldPressed();
         if (panel && panel.activeSelf != wantOpen)
         {
             panel.SetActive(wantOpen);
-            if (wantOpen && refreshOnOpen) { Rebuild(); UpdateHash(); }
+            if (wantOpen && refreshOnOpen)
+            {
+                Rebuild();
+                UpdateHash();
+            }
         }
 
-        // Auto refresh
         if (panel && panel.activeSelf && autoRefreshWhileOpen && Time.unscaledTime >= _nextRefreshAt)
         {
-            if (UpdateHashIfChanged()) Rebuild();
+            if (UpdateHashIfChanged())
+                Rebuild();
+
             _nextRefreshAt = Time.unscaledTime + autoRefreshInterval;
         }
     }
@@ -103,17 +118,22 @@ public class InventoryGridUI : MonoBehaviour
     {
         if (!inventory || slots == null || slots.Count == 0) return;
 
-        // ล้างทุกช่องก่อน
-        foreach (var s in slots) s.SetItem(null, 0, null);
+        foreach (var s in slots)
+            s.SetItem(null, 0, null);
 
-        // อ่านของทั้งหมด เรียงตามชื่อเพื่อ UI คงที่
-        var all = inventory.GetAll().OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).ToList();
+        // ✨ เดิมใช้ OrderBy + ToList → ตอนนี้ใช้ buffer + Sort เพื่อลด GC
+        _sortedBuffer.Clear();
+        var dict = inventory.GetAll();
+        foreach (var kv in dict)
+            _sortedBuffer.Add(kv);
 
-        int max = Mathf.Min(slots.Count, all.Count);
+        _sortedBuffer.Sort(_keyComparer);
+
+        int max = Mathf.Min(slots.Count, _sortedBuffer.Count);
         for (int i = 0; i < max; i++)
         {
-            var id = all[i].Key;
-            var count = all[i].Value;
+            var id = _sortedBuffer[i].Key;
+            var count = _sortedBuffer[i].Value;
             var icon = ResolveIcon(id);
             slots[i].SetItem(id, count, icon);
         }
@@ -123,14 +143,19 @@ public class InventoryGridUI : MonoBehaviour
     {
         _iconDict.Clear();
         foreach (var m in iconMaps)
-            if (!string.IsNullOrEmpty(m.id) && m.sprite) _iconDict[m.id] = m.sprite;
+            if (!string.IsNullOrEmpty(m.id) && m.sprite)
+                _iconDict[m.id] = m.sprite;
     }
 
     private Sprite ResolveIcon(string id)
     {
         if (_iconDict.TryGetValue(id, out var sp) && sp) return sp;
         var res = Resources.Load<Sprite>($"Icons/{id}");
-        if (res) { _iconDict[id] = res; return res; }
+        if (res)
+        {
+            _iconDict[id] = res;
+            return res;
+        }
         return null;
     }
 
@@ -140,7 +165,11 @@ public class InventoryGridUI : MonoBehaviour
         if (h != _lastHash) { _lastHash = h; return true; }
         return false;
     }
-    private void UpdateHash() => _lastHash = ComputeHash(inventory.GetAll());
+
+    private void UpdateHash()
+    {
+        _lastHash = ComputeHash(inventory.GetAll());
+    }
 
     private int ComputeHash(IReadOnlyDictionary<string, int> dict)
     {
@@ -165,16 +194,18 @@ public class InventoryGridUI : MonoBehaviour
 
         if (useDefaultTabIfEmpty)
         {
-            _runtimeHoldAction = new InputAction("HoldInventory", InputActionType.Button);
+            _runtimeHoldAction = new InputAction("HoldInventoryGrid", InputActionType.Button);
             _runtimeHoldAction.AddBinding("<Keyboard>/tab");
             _runtimeHoldAction.AddBinding("<Gamepad>/leftShoulder");
         }
     }
+
     private InputAction GetHoldAction()
     {
         if (holdAction.reference != null) return holdAction.reference.action;
         return _runtimeHoldAction;
     }
+
     private bool IsHoldPressed()
     {
         var act = GetHoldAction();

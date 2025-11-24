@@ -18,7 +18,7 @@ public class RadioInventoryUI : MonoBehaviour
     public float autoCloseDistance = 4f;
 
     [Header("Cursor & Lock")]
-    public bool lockLookOnOpen = true;  // เปิดไว้เพื่อล็อกกล้องไม่ให้หันตามเมาส์ตอน UI นี้โชว์
+    public bool lockLookOnOpen = true;
     public bool lockMoveOnOpen = false;
 
 #if ENABLE_INPUT_SYSTEM
@@ -39,6 +39,8 @@ public class RadioInventoryUI : MonoBehaviour
     float _customSeconds;
     Transform _radioTf;
     Transform _playerTf;
+
+    // 🔹 Pool ของปุ่ม (ไม่ Destroy เวลารีเฟรช)
     readonly List<Button> _spawned = new List<Button>();
     readonly List<int> _indexMap = new List<int>();
 
@@ -61,7 +63,6 @@ public class RadioInventoryUI : MonoBehaviour
 
     void OnDisable()
     {
-        // ถ้าโดนปิดวัตถุ/เปลี่ยนซีนตอนกำลังเปิด UI ให้คืน Cursor/Unfreeze ให้ครบ
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
     }
@@ -94,15 +95,6 @@ public class RadioInventoryUI : MonoBehaviour
             return;
         }
 
-        // กันเปิดซ้ำ: ถ้าเปิดอยู่แล้ว ให้เพียง Rebuild รายการ แล้ว return
-        if (IsOpen)
-        {
-            if (verboseLog) Debug.Log("[RadioInventoryUI] Open(): UI เปิดอยู่แล้ว → รีเฟรชปุ่มอย่างเดียว");
-            _radio = radio; _mode = mode; _customSeconds = customSeconds; _radioTf = radio.transform; _playerTf = player;
-            RebuildButtons();
-            return;
-        }
-
         _radio = radio;
         _mode = mode;
         _customSeconds = customSeconds;
@@ -115,8 +107,12 @@ public class RadioInventoryUI : MonoBehaviour
         if (panelRoot) panelRoot.SetActive(true);
 
         // เซฟสถานะ cursor เฉพาะตอนเปลี่ยนจาก “ปิด → เปิด”
-        _prevLock = Cursor.lockState;
-        _prevVisible = Cursor.visible;
+        if (!_cursorOverridden)
+        {
+            _prevLock = Cursor.lockState;
+            _prevVisible = Cursor.visible;
+        }
+
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
         _cursorOverridden = true;
@@ -127,9 +123,7 @@ public class RadioInventoryUI : MonoBehaviour
 
     public void Close()
     {
-        // คืน cursor เฉพาะถ้าเราเป็นคนเปลี่ยน
         if (_cursorOverridden) RestoreCursor();
-
         TryFreezePlayerControls(false);
 
         if (panelRoot) panelRoot.SetActive(false);
@@ -196,7 +190,7 @@ public class RadioInventoryUI : MonoBehaviour
 
     void RebuildButtons()
     {
-        ClearButtons();
+        ClearButtons(); // ตอนนี้คือซ่อน + ล้าง indexMap ไม่ Destroy
 
         if (!_radio || _radio.tapes == null || _radio.tapes.Count == 0)
         {
@@ -211,11 +205,21 @@ public class RadioInventoryUI : MonoBehaviour
         {
             var t = _radio.tapes[i];
             int cnt = _radio.playerInventory ? _radio.playerInventory.GetCount(t.tapeKeyId) : 0;
-
             if (cnt <= 0) continue;
 
-            var btn = Instantiate(buttonPrefab, buttonsParent);
-            _spawned.Add(btn);
+            // 🔹 ใช้ปุ่มจาก pool ก่อน ถ้าไม่พอค่อย Instantiate ใหม่
+            Button btn;
+            if (availableCount < _spawned.Count && _spawned[availableCount] != null)
+            {
+                btn = _spawned[availableCount];
+            }
+            else
+            {
+                btn = Instantiate(buttonPrefab, buttonsParent);
+                _spawned.Add(btn);
+            }
+
+            btn.gameObject.SetActive(true);
             _indexMap.Add(i);
 
             var label = btn.GetComponentInChildren<TMP_Text>();
@@ -237,17 +241,25 @@ public class RadioInventoryUI : MonoBehaviour
         else
         {
             SetHeader("Select the tape you want to play.");
-            SetHint(enableNumberHotkeys ? "Click the button or press the numbers 1–9 • ESC to close."
-                                        : "Click the button to select • ESC to close.");
+            SetHint(enableNumberHotkeys
+                ? "Click the button or press the numbers 1–9 • ESC to close."
+                : "Click the button to select • ESC to close.");
         }
     }
 
     void ClearButtons()
     {
-        foreach (var b in _spawned) if (b) Destroy(b.gameObject);
-        _spawned.Clear();
+        // 🔹 แทน Destroy: แค่ซ่อน + reset onClick เพื่อลด GC และการจองแรมใหม่
+        foreach (var b in _spawned)
+        {
+            if (!b) continue;
+            b.onClick.RemoveAllListeners();
+            b.gameObject.SetActive(false);
+        }
+
         _indexMap.Clear();
-        SetHeader(""); SetHint("");
+        SetHeader("");
+        SetHint("");
     }
 
     void OnPick(int tapeIndex)
@@ -310,19 +322,16 @@ public class RadioInventoryUI : MonoBehaviour
     }
 
     // ---------- Freeze/Unfreeze player controls ----------
-    // ---------- Freeze/Unfreeze player controls ----------
     void TryFreezePlayerControls(bool freeze)
     {
         if (_playerTf == null) return;
 
         if (_playerCtrl == null)
         {
-            // เดิม: พยายามหาจาก PlayerControllerTest
             var playerType = System.Type.GetType("PlayerControllerTest");
             if (playerType != null)
                 _playerCtrl = _playerTf.GetComponentInParent(playerType);
 
-            // เพิ่ม: รองรับ PlayerController3D ด้วย (ของโปรเจกต์ Game Of Fear)
             if (_playerCtrl == null)
             {
                 var pc3d = _playerTf.GetComponentInParent<PlayerController3D>();
@@ -359,7 +368,6 @@ public class RadioInventoryUI : MonoBehaviour
         {
             if (lockLookOnOpen)
             {
-                // รองรับทั้งชื่อเก่าและชื่อของ PlayerController3D
                 SetFloat("mouseSensitivityX", ref _prevMouseX, 0f);
                 SetFloat("sensX", ref _prevMouseX, 0f);
 
@@ -391,5 +399,4 @@ public class RadioInventoryUI : MonoBehaviour
             }
         }
     }
-
 }
