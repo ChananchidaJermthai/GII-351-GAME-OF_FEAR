@@ -24,63 +24,59 @@ public class GhostMove : MonoBehaviour
     [Range(0f, 1f)]
     public float spawnVolume = 1f;       // ปรับความดังของเสียง
 
-    // เก็บผีตัวล่าสุด
     private GameObject currentGhost;
-    private bool hasSpawnedOnce = false; // เช็คว่า Spawn ครั้งเดียวแล้วหรือยัง
+    private bool hasSpawnedOnce = false;
+
+    public float sanityAmount = 3.5f;
 
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
 
-        // ถ้า spawnOnce แล้ว Spawn ไปแล้ว → ไม่ทำงาน
         if (spawnOnce && hasSpawnedOnce) return;
-
-        // ถ้าผียังไม่ลบ → ไม่ Spawn
         if (currentGhost != null) return;
 
-        // ถ้า spawnOnce → rate = 100% (ชนปุ๊ป Spawn เลย)
         float effectiveRate = spawnOnce ? 100f : rate;
+        if (Random.Range(0f, 100f) > effectiveRate) return;
 
-        // Random chance
-        if (Random.Range(0f,100f) > effectiveRate) return;
-
-        // เลือก Prefab แบบสุ่ม
         if (ghostPrefabs.Length == 0)
         {
             Debug.LogWarning("ไม่มี Ghost Prefab ใส่ใน Array!");
             return;
         }
+
         GameObject prefab = ghostPrefabs[Random.Range(0, ghostPrefabs.Length)];
 
-        // Sample spawn position on NavMesh
         NavMeshHit spawnHit;
         Vector3 spawnPos = point2Spawn.position;
         if (NavMesh.SamplePosition(spawnPos, out spawnHit, 1f, NavMesh.AllAreas))
             spawnPos = spawnHit.position;
 
-        // Instantiate ghost
         currentGhost = Instantiate(prefab, spawnPos, Quaternion.identity);
 
-        // เล่นเสียงถ้าใส่
+        // เล่นเสียงในหูผู้เล่น (2D, ไม่ขึ้นอยู่กับตำแหน่ง)
         if (spawnSound != null)
         {
-            AudioSource.PlayClipAtPoint(spawnSound, spawnPos, spawnVolume);
+            PlaySoundInPlayerEar(spawnSound, spawnVolume);
+        }
+
+        PlayerController3D playerController = other.GetComponent<PlayerController3D>();
+        if (playerController != null)
+        {
+            playerController.AddSanity(sanityAmount);
         }
 
         if (point3Destination != null)
         {
-            // Sample destination on NavMesh
             NavMeshHit destHit;
             Vector3 destPos = point3Destination.position;
             if (NavMesh.SamplePosition(destPos, out destHit, 1f, NavMesh.AllAreas))
                 destPos = destHit.position;
 
-            // Rotate ghost to face destination
             Vector3 lookPos = destPos;
             lookPos.y = currentGhost.transform.position.y;
             currentGhost.transform.LookAt(lookPos);
 
-            // NavMeshAgent setup
             NavMeshAgent agent = currentGhost.GetComponent<NavMeshAgent>();
             if (agent != null)
             {
@@ -95,13 +91,25 @@ public class GhostMove : MonoBehaviour
             }
         }
 
-        // Destroy after time และเคลียร์ reference
         Destroy(currentGhost, destroyTime);
         Invoke(nameof(ClearCurrentGhost), destroyTime);
 
-        // ถ้า spawnOnce = true → กำหนดว่า Spawn ครั้งเดียวแล้ว
         if (spawnOnce)
             hasSpawnedOnce = true;
+    }
+
+    private void PlaySoundInPlayerEar(AudioClip clip, float volume)
+    {
+        Camera mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            AudioSource audioSource = mainCam.gameObject.AddComponent<AudioSource>();
+            audioSource.clip = clip;
+            audioSource.volume = volume;
+            audioSource.spatialBlend = 0f; // 0 = 2D (อยู่ในหูผู้เล่น)
+            audioSource.Play();
+            Destroy(audioSource, clip.length); // ลบหลังเล่นจบ
+        }
     }
 
     private void ClearCurrentGhost()
