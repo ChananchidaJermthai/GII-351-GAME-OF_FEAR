@@ -140,6 +140,8 @@ public class PlayerController3D : MonoBehaviour
     public bool IsCrouching => isCrouching;
     public float Stamina01 => Mathf.Clamp01(stamina / staminaMax);
     public float Sanity01 => Mathf.Clamp01(sanity / sanityMax);
+    public float CurrentSanity => sanity;
+
 
     bool gameOverTriggered = false;
 

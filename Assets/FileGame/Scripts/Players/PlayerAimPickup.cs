@@ -11,6 +11,10 @@ public class PlayerAimPickup : MonoBehaviour
     public Camera playerCamera;
     public InventoryLite inventory;
 
+    [Header("Pickup Toast UI")]
+    [Tooltip("UI ที่ใช้แสดงข้อความตอนเก็บไอเทม (เด้งขึ้นจากล่างแล้วสไลด์ออก)")]
+    public ItemPickupToastUI pickupToast;
+
     [Header("Aim / Raycast")]
     [Min(0.5f)] public float maxPickupDistance = 3.0f;
     public LayerMask hitMask = ~0;
@@ -40,11 +44,16 @@ public class PlayerAimPickup : MonoBehaviour
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
     }
+
     void Awake()
     {
         if (!playerCamera) playerCamera = GetComponentInChildren<Camera>();
         if (!inventory) inventory = GetComponentInParent<InventoryLite>();
         if (promptRoot) promptRoot.SetActive(false);
+
+        // หา Toast UI อัตโนมัติถ้าไม่ได้ลากใน Inspector
+        if (!pickupToast)
+            pickupToast = FindObjectOfType<ItemPickupToastUI>();
     }
 
     void LateUpdate()
@@ -90,14 +99,27 @@ public class PlayerAimPickup : MonoBehaviour
         if (drawRay)
             Debug.DrawRay(ray.origin, ray.direction * maxPickupDistance, hasTarget ? Color.green : Color.red);
 
-        if (hasTarget && PressedInteract())
+        // กด Interact
+        if (!hasTarget || !PressedInteract())
+            return;
+
+        if (itemTarget)
         {
-            if (itemTarget) itemTarget.TryPickup(gameObject);
-            else if (radioTarget) radioTarget.TryInteract(gameObject);
-            else if (breakerTarget) breakerTarget.TryInteract(gameObject);
-            else if (shelfTarget) shelfTarget.TryInteract(gameObject);
-            else if (doorTarget) doorTarget.TryInteract(gameObject); // เริ่มโฮลด์ที่ DoorExit
+            // 1) แสดง Toast แจ้งเตือนไอเทม (ถือว่าเก็บสำเร็จ)
+            if (pickupToast)
+            {
+                // ถ้ามีชื่อโชว์สวย ๆ ใน ItemPickup3D ก็เปลี่ยนมาจาก itemId ได้
+                string msg = $"{itemTarget.itemId}  +{itemTarget.amount}";
+                pickupToast.Show(msg);
+            }
+
+            // 2) ให้ระบบเก็บไอเทมทำงานตามเดิม
+            itemTarget.TryPickup(gameObject);
         }
+        else if (radioTarget)      radioTarget.TryInteract(gameObject);
+        else if (breakerTarget)    breakerTarget.TryInteract(gameObject);
+        else if (shelfTarget)      shelfTarget.TryInteract(gameObject);
+        else if (doorTarget)       doorTarget.TryInteract(gameObject); // เริ่มโฮลด์ที่ DoorExit
     }
 
     bool PressedInteract()
