@@ -33,7 +33,7 @@ public class DiaryFirstPickupToast : MonoBehaviour
         if (!inventory)
         {
             inventory = FindFirstObjectByType<InventoryLite>();
-            if (!inventory) inventory = FindObjectOfType<InventoryLite>();
+            if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
         }
 
         if (toastRoot) toastRoot.SetActive(false);
