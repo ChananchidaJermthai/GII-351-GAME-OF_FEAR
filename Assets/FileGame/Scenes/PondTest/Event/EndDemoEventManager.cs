@@ -228,7 +228,9 @@ public class EndDemoEventManager : MonoBehaviour
         // ปลด freeze ก่อนโหลด
         Time.timeScale = 1f;
 
-        SceneManager.LoadScene("MainMenu");
+        //SceneManager.LoadScene("MainMenu");
+        SceneManager.LoadScene("EndCredits");
     }
+    
 
 }
