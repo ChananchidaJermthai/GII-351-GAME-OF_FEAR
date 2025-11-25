@@ -5,51 +5,45 @@ using UnityEngine;
 public class HighlightItem : MonoBehaviour
 {
     [Header("Highlight Settings")]
-    [Tooltip("Material ที่ใช้ตอน Highlight (เช่น Outline / Emission)")]
+    [Tooltip("ใส่ Material ที่ใช้ตอน Highlight (เช่น Outline / Emission)")]
     public Material highlightMaterial;
 
-    [Tooltip("ถ้าว่าง จะใช้ Renderer ทั้งหมดในลูกหลานอัตโนมัติ")]
+    [Tooltip("ถ้าเว้นว่างไว้ จะใช้ Renderer ทั้งหมดในลูกหลานอัตโนมัติ")]
     public Renderer[] targetRenderers;
 
-    [Tooltip("เริ่มต้นแบบไม่ Highlight")]
+    [Tooltip("ให้เริ่มแบบไม่ Highlight")]
     public bool startDisabled = true;
 
-    // เก็บ material เดิมเพื่อสลับกลับ
-    private Material[][] _originalMats;
-    private bool _initialized = false;
-    private bool _isHighlighted = false;
+    // เก็บ material เดิมไว้เพื่อสลับกลับ
+    List<Material[]> _originalMats = new List<Material[]>();
+    bool _initialized = false;
+    bool _isHighlighted = false;
 
     void Awake()
     {
-        // ถ้าไม่มี target ให้ดึง Renderer ทั้งหมดในลูกหลาน
         if (targetRenderers == null || targetRenderers.Length == 0)
         {
             targetRenderers = GetComponentsInChildren<Renderer>();
         }
 
-        // เก็บ material เดิม
-        _originalMats = new Material[targetRenderers.Length][];
-        for (int i = 0; i < targetRenderers.Length; i++)
+        foreach (var r in targetRenderers)
         {
-            var r = targetRenderers[i];
-            if (r != null)
-            {
-                _originalMats[i] = r.sharedMaterials;
-            }
+            if (r == null) continue;
+            _originalMats.Add(r.sharedMaterials);
         }
 
         _initialized = true;
 
-        // ตั้งค่า highlight ตาม startDisabled
-        SetHighlight(!startDisabled);
+        if (startDisabled)
+            SetHighlight(false);
+        else
+            SetHighlight(true);
     }
 
-    /// <summary>
-    /// สลับ highlight ของ object
-    /// </summary>
     public void SetHighlight(bool value)
     {
-        if (!_initialized || _isHighlighted == value) return;
+        if (!_initialized) return;
+        if (_isHighlighted == value) return;
         _isHighlighted = value;
 
         if (value)
@@ -58,10 +52,7 @@ public class HighlightItem : MonoBehaviour
             RestoreOriginal();
     }
 
-    /// <summary>
-    /// ใช้ highlightMaterial แทน material เดิม
-    /// </summary>
-    private void ApplyHighlight()
+    void ApplyHighlight()
     {
         if (highlightMaterial == null)
         {
@@ -74,25 +65,21 @@ public class HighlightItem : MonoBehaviour
             var r = targetRenderers[i];
             if (r == null) continue;
 
-            // ใช้ highlightMaterial ทุกช่อง แต่ reuse array เพื่อลด allocation
-            int len = r.sharedMaterials.Length;
-            Material[] newMats = new Material[len];
-            for (int j = 0; j < len; j++)
-                newMats[j] = highlightMaterial;
+            // ทำ array material ใหม่ที่ยาวเท่าเดิม แต่แทนที่ทุกช่องด้วย highlightMaterial
+            Material[] newMats = new Material[r.sharedMaterials.Length];
+            for (int m = 0; m < newMats.Length; m++)
+                newMats[m] = highlightMaterial;
 
             r.sharedMaterials = newMats;
         }
     }
 
-    /// <summary>
-    /// คืน material เดิมกลับ
-    /// </summary>
-    private void RestoreOriginal()
+    void RestoreOriginal()
     {
-        for (int i = 0; i < targetRenderers.Length && i < _originalMats.Length; i++)
+        for (int i = 0; i < targetRenderers.Length && i < _originalMats.Count; i++)
         {
             var r = targetRenderers[i];
-            if (r == null || _originalMats[i] == null) continue;
+            if (r == null) continue;
             r.sharedMaterials = _originalMats[i];
         }
     }

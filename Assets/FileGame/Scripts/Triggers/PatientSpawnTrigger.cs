@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [DisallowMultipleComponent]
-[RequireComponent(typeof(Collider))]
 public class PatientSpawnTrigger : MonoBehaviour
 {
     [Header("Trigger")]
@@ -26,14 +25,10 @@ public class PatientSpawnTrigger : MonoBehaviour
     public float destroyDelayAfterArrive = 0.2f;
     public bool disableTriggerAfterRun = true;
 
-    private AudioSource _audio;
-    private bool _fired = false;
+    AudioSource _audio; bool _fired = false;
 
     void Awake()
     {
-        var col = GetComponent<Collider>();
-        col.isTrigger = true;
-
         _audio = GetComponent<AudioSource>();
         if (!_audio)
         {
@@ -49,50 +44,45 @@ public class PatientSpawnTrigger : MonoBehaviour
         if (_fired && oneShot) return;
         if (!other.CompareTag(playerTag)) return;
 
-        Transform playerRoot = other.transform;
-        if (!playerRoot) return;
+        var player = other.GetComponentInParent<Transform>();
+        if (!player) return;
 
+        StartCoroutine(RunSequence(player));
         _fired = true;
         if (disableTriggerAfterRun) GetComponent<Collider>().enabled = false;
-
-        StartCoroutine(RunSequence(playerRoot));
     }
 
-    private IEnumerator RunSequence(Transform player)
+    IEnumerator RunSequence(Transform player)
     {
-        // 1) Spawn Patient
+        // 1) Spawn ผู้ป่วย
         if (!patientPrefab || !spawnPoint) yield break;
         GameObject patient = Instantiate(patientPrefab, spawnPoint.position, spawnPoint.rotation);
 
-        // 2) กล้องมองผู้ป่วย + ล็อกคอนโทรล
+        // 2) กล้อง "ตามผู้ป่วย" + ล็อกคอนโทรลผู้เล่น
         var pc = player.GetComponent<PlayerController3D>();
-        if (pc) pc.StartLookFollow(patient.transform, 8f, lockControl: true);
+        if (pc) pc.StartLookFollow(patient.transform, 8f, true);
 
-        // 3) เล่นเสียง + เพิ่ม sanity
-        if (spawnSfx && _audio)
-        {
-            _audio.transform.position = patient.transform.position;
-            _audio.PlayOneShot(spawnSfx, sfxVolume);
-        }
-        if (addSanity != 0f && pc) pc.AddSanity(addSanity);
+        // 3) เล่นเสียง + เพิ่ม Sanity
+        if (spawnSfx) { _audio.transform.position = patient.transform.position; _audio.PlayOneShot(spawnSfx, sfxVolume); }
+        TryAddSanity(player.gameObject, addSanity);
 
-        AmbientRoomAudioManager.FocusDuck();
+        AmbientRoomAudioManager.FocusDuck();  // โฟกัสเสียงอีเวนต์ (คนไข้โผล่)
 
-        // 4) รอสักครู่
-        yield return new WaitForSeconds(Random.Range(waitBeforeWalk.x, waitBeforeWalk.y));
 
-        // 5) สั่งเดินไป exitPoint
+        // 4) รอสัก 1–2 วิ ก่อนสั่งเดิน
+        float wait = Random.Range(waitBeforeWalk.x, waitBeforeWalk.y);
+        yield return new WaitForSeconds(wait);
+
+        // 5) สั่งเดินไปยังกำหนด แล้วหายไป
         if (exitPoint) yield return MovePatientTo(patient, exitPoint.position, patientMoveSpeed);
-
-        // 6) ลบ patient หลังถึงปลายทาง
         yield return new WaitForSeconds(destroyDelayAfterArrive);
         if (patient) Destroy(patient);
 
-        // 7) คืน control
-        if (pc) pc.StopLookFollow(unlockControl: true);
+        // 6) คืนกล้อง/คอนโทรลผู้เล่น
+        if (pc) pc.StopLookFollow(true);
     }
 
-    private IEnumerator MovePatientTo(GameObject patient, Vector3 targetPos, float speed)
+    IEnumerator MovePatientTo(GameObject patient, Vector3 targetPos, float speed)
     {
         if (!patient) yield break;
 
@@ -102,14 +92,12 @@ public class PatientSpawnTrigger : MonoBehaviour
             agent.isStopped = false;
             agent.stoppingDistance = 0.05f;
             agent.SetDestination(targetPos);
-
-            while (patient && agent && (agent.pathPending || agent.remainingDistance > Mathf.Max(agent.stoppingDistance, 0.05f)))
-                yield return null;
-
+            while (patient && agent && agent.pathPending) yield return null;
+            while (patient && agent && agent.remainingDistance > Mathf.Max(agent.stoppingDistance, 0.05f)) yield return null;
             yield break;
         }
 
-        // Move manually if no NavMeshAgent
+        // ไม่มี NavMeshAgent: เดินธรรมดา
         var tr = patient.transform;
         float minStop = 0.05f;
         while (patient && (tr.position - targetPos).sqrMagnitude > minStop * minStop)
@@ -126,4 +114,12 @@ public class PatientSpawnTrigger : MonoBehaviour
             yield return null;
         }
     }
+
+    void TryAddSanity(GameObject playerGO, float amount)
+    {
+        if (amount == 0f) return;
+        var pc3d = playerGO.GetComponent<PlayerController3D>();
+        if (pc3d) { pc3d.AddSanity(amount); return; }
+    }
 }
+

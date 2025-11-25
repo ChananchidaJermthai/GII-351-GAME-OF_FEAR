@@ -44,7 +44,7 @@ GameObject:
   - component: {fileID: 4960795238760742}
   - component: {fileID: 33985402674430756}
   - component: {fileID: 23302864517263798}
-  - component: {fileID: 2894371108730811944}
+  - component: {fileID: 64521770435726182}
   m_Layer: 0
   m_Name: Pillar
   m_TagString: Untagged
@@ -123,8 +123,8 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2894371108730811944
-BoxCollider:
+--- !u!64 &64521770435726182
+MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -140,10 +140,11 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 7.62601, y: 3.6482935, z: 1.1145351}
-  m_Center: {x: 0.016340971, y: 1.7910028, z: 0.0000030696392}
+  m_Enabled: 0
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300002, guid: 91b7d431707605143aa901bee75cf344, type: 3}
 --- !u!1 &1976028470924266
 GameObject:
   m_ObjectHideFlags: 0
@@ -155,7 +156,7 @@ GameObject:
   - component: {fileID: 4011053944102532}
   - component: {fileID: 33019749612726638}
   - component: {fileID: 23357926752690114}
-  - component: {fileID: 3288216339624076173}
+  - component: {fileID: 64300212039003202}
   m_Layer: 0
   m_Name: Pillar_Marble
   m_TagString: Untagged
@@ -234,8 +235,8 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &3288216339624076173
-BoxCollider:
+--- !u!64 &64300212039003202
+MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -252,6 +253,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 5.374614, y: 0.05539798, z: 0.525765}
-  m_Center: {x: 0.00035488605, y: 1.2010909, z: -0.0017799437}
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300000, guid: 91b7d431707605143aa901bee75cf344, type: 3}

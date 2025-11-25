@@ -4,25 +4,18 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class AmbientRoomZone : MonoBehaviour
 {
-    private Collider col;
+    Collider col;
 
     void Awake()
     {
-        if (TryGetComponent(out Collider c))
-        {
-            col = c;
-            col.isTrigger = true;
-        }
-        else
-        {
-            Debug.LogError($"AmbientRoomZone requires a Collider on {gameObject.name}");
-        }
+        col = GetComponent<Collider>();
+        col.isTrigger = true;
     }
 
     void OnTriggerEnter(Collider other)
     {
         var mgr = AmbientRoomAudioManager.Instance;
-        if (!mgr || !mgr.Player || col == null) return;
+        if (!mgr || !mgr.Player) return;
 
         if (other.transform == mgr.Player || other.transform.IsChildOf(mgr.Player))
             mgr.OnZoneEnter(gameObject, col);
@@ -31,7 +24,7 @@ public class AmbientRoomZone : MonoBehaviour
     void OnTriggerExit(Collider other)
     {
         var mgr = AmbientRoomAudioManager.Instance;
-        if (!mgr || !mgr.Player || col == null) return;
+        if (!mgr || !mgr.Player) return;
 
         if (other.transform == mgr.Player || other.transform.IsChildOf(mgr.Player))
             mgr.OnZoneExit(gameObject, col);
@@ -40,10 +33,8 @@ public class AmbientRoomZone : MonoBehaviour
 #if UNITY_EDITOR
     void OnValidate()
     {
-        if (TryGetComponent(out Collider c))
-        {
-            c.isTrigger = true;
-        }
+        var c = GetComponent<Collider>();
+        if (c) c.isTrigger = true;
     }
 #endif
 }

@@ -17,42 +17,36 @@ public class ItemPickup3D : MonoBehaviour
     [Header("Events")]
     public UnityEvent onPicked;
 
-    /// <summary>
-    /// เรียกจาก PlayerAimPickup เมื่อผู้เล่นพยายามเก็บไอเท็ม
-    /// </summary>
+    // เรียกจาก PlayerAimPickup เมื่อต้องการเก็บ (เล็งโดน + อยู่ในระยะ + กดปุ่มที่ฝั่งผู้เล่น)
     public void TryPickup(GameObject playerGO)
     {
-        if (!playerGO || string.IsNullOrEmpty(itemId))
-        {
-            Debug.LogWarning("[ItemPickup3D] Player or itemId is invalid.");
-            return;
-        }
+        if (!playerGO) return;
 
         var inv = playerGO.GetComponentInParent<InventoryLite>();
         if (!inv)
         {
-            Debug.LogWarning($"[ItemPickup3D] No InventoryLite found on {playerGO.name} or its parents.");
+            Debug.LogWarning($"[ItemPickup3D] No InventoryLite on {playerGO.name} or its parents.");
+            return;
+        }
+        if (string.IsNullOrEmpty(itemId))
+        {
+            Debug.LogWarning("[ItemPickup3D] itemId is empty.");
             return;
         }
 
-        // เพิ่มไอเท็ม
         inv.AddItem(itemId, Mathf.Max(1, amount));
 
-        // สร้าง VFX/SFX
-        if (pickupVfxPrefab) Object.Instantiate(pickupVfxPrefab, transform.position, Quaternion.identity);
+        if (pickupVfxPrefab) Instantiate(pickupVfxPrefab, transform.position, Quaternion.identity);
         if (pickupSfx) AudioSource.PlayClipAtPoint(pickupSfx, transform.position, sfxVolume);
-
-        // เรียก event
         onPicked?.Invoke();
 
-        // ปิดหรือทำลายตัวเอง
-        if (destroyOnPickup) Object.Destroy(gameObject);
+        if (destroyOnPickup) Destroy(gameObject);
         else gameObject.SetActive(false);
     }
 
     void Reset()
     {
-        // Collider ต้องไม่เป็น Trigger สำหรับ Raycast
+        // ใช้ Raycast จากฝั่งผู้เล่น ไม่จำเป็นต้องเป็น Trigger
         var c = GetComponent<Collider>();
         if (c) c.isTrigger = false;
     }

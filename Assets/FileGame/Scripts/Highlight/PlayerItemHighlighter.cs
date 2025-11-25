@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 
-[DisallowMultipleComponent]
 public class PlayerItemHighlighter : MonoBehaviour
 {
     [Header("Camera / Ray Settings")]
@@ -11,14 +10,12 @@ public class PlayerItemHighlighter : MonoBehaviour
     public float maxDistance = 4f;
 
     [Tooltip("LayerMask ของวัตถุที่ให้ตรวจ (ตั้งเป็น Item / Interactable เป็นต้น)")]
-    public LayerMask interactLayer = ~0;
+    public LayerMask interactLayer = ~0; // ค่า default = ทุกเลเยอร์
 
     [Header("Debug")]
     public bool showDebugRay = false;
 
-    private HighlightItem _currentHighlight;
-    private Ray _ray;
-    private RaycastHit _hit;
+    HighlightItem _currentHighlight;
 
     void Awake()
     {
@@ -30,35 +27,34 @@ public class PlayerItemHighlighter : MonoBehaviour
     {
         if (playerCamera == null) return;
 
-        // เตรียม Ray
-        _ray.origin = playerCamera.transform.position;
-        _ray.direction = playerCamera.transform.forward;
+        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+        RaycastHit hit;
 
-        bool hitSomething = Physics.Raycast(_ray, out _hit, maxDistance, interactLayer, QueryTriggerInteraction.Ignore);
-
-        if (showDebugRay)
+        if (Physics.Raycast(ray, out hit, maxDistance, interactLayer, QueryTriggerInteraction.Ignore))
         {
-            Color rayColor = hitSomething ? Color.green : Color.red;
-            Vector3 endPoint = hitSomething ? _hit.point : _ray.origin + _ray.direction * maxDistance;
-            Debug.DrawLine(_ray.origin, endPoint, rayColor);
-        }
+            if (showDebugRay) Debug.DrawLine(ray.origin, hit.point, Color.green);
 
-        if (hitSomething)
-        {
-            var highlight = _hit.collider.GetComponentInParent<HighlightItem>();
+            var highlight = hit.collider.GetComponentInParent<HighlightItem>();
             if (highlight != null)
             {
+                // ถ้าตัวใหม่ไม่เหมือนตัวเดิม ให้สลับ highlight
                 if (_currentHighlight != highlight)
                 {
                     ClearCurrent();
                     _currentHighlight = highlight;
                     _currentHighlight.SetHighlight(true);
                 }
-                return; // เจอ highlight แล้ว ไม่ต้อง ClearCurrent
+                return;
             }
         }
+        else
+        {
+            if (showDebugRay)
+                Debug.DrawLine(ray.origin, ray.origin + ray.direction * maxDistance, Color.red);
+        }
 
-        ClearCurrent(); // ถ้าไม่ได้ Raycast เจอ highlight
+        
+        ClearCurrent();
     }
 
     void ClearCurrent()

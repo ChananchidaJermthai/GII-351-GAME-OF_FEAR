@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 using TMPro;
@@ -9,45 +8,53 @@ using UnityEngine.UI;
 public class GameOverPanelController : MonoBehaviour
 {
     [Header("References")]
-    public CanvasGroup panelGroup;
-    public TMP_Text titleText;
-    public TMP_Text bodyText;
-    public Image dimBackground;
+    public CanvasGroup panelGroup;      // CanvasGroup ของ Panel GameOver
+    public TMP_Text titleText;          // ข้อความ "Game Over"
+    public TMP_Text bodyText;           // ข้อความพิมพ์ดีด (อังกฤษ)
+    public Image dimBackground;         // (ตัวเลือก) พื้นหลังดำจาง ๆ
 
     [Header("Texts")]
     [TextArea] public string title = "GAME OVER";
-    [TextArea] public string bodyEn =
+    [TextArea]
+    public string bodyEn =
         "You have died. If you wish to feel fear again, press Restart now.";
 
-    [Header("Fade In/Out")]
-    public float fadeDuration = 1f;
+    [Header("Fade In")]
+    [Tooltip("เวลาที่ใช้ในการค่อย ๆ เฟดทั้ง Panel ให้ปรากฏ")]
+    public float fadeDuration = 1.0f;
     [Range(0f, 1f)] public float startAlpha = 0f;
     [Range(0f, 1f)] public float endAlpha = 1f;
 
     [Header("Typewriter")]
+    [Tooltip("ตัวอักษร/วินาที (ใช้เวลาแบบ Unscaled)")]
     public float charsPerSecond = 35f;
     public bool showCaret = false;
     public string caret = "▌";
-    public bool allowSkipTyping = true;
+    public bool allowSkipTyping = true;     // กดปุ่มใด ๆ เพื่อข้ามพิมพ์ดีดให้เสร็จทันที
 
     [Header("Optional SFX")]
     public AudioSource typeAudioSource;
-    public AudioClip typeTick;
-    [Range(0f,1f)] public float tickVolume = 0.6f;
+    public AudioClip typeTick;               // จะถูกเล่นเป็นจังหวะ
+    [Range(0f, 1f)] public float tickVolume = 0.6f;
+    [Tooltip("ดีเลย์ขั้นต่ำระหว่างเสียง type (วินาที)")]
     public float minTickInterval = 0.03f;
 
     [Header("Events")]
-    public UnityEvent onShown;
-    public UnityEvent onTypingFinished;
+    public UnityEvent onShown;               // เรียกเมื่อเฟดเสร็จและเริ่มพิมพ์ดีด
+    public UnityEvent onTypingFinished;      // เรียกเมื่อพิมพ์ดีดจบ
 
     [Header("Start Options")]
-    public bool playOnEnable = false;
-    public bool lockCursor = true;
+    public bool playOnEnable = false;        // ถ้าติ๊กไว้ จะเล่นอัตโนมัติเมื่อ Enable
+    public bool lockCursor = true;           // ล็อก/ปลดล็อกเมาส์ระหว่างโชว์
 
     Coroutine _routine;
-    float _nextTickAt;
+    bool _typing;
+    float _nextTickAt = 0f;
 
-    void Reset() => panelGroup = GetComponent<CanvasGroup>();
+    void Reset()
+    {
+        panelGroup = GetComponent<CanvasGroup>();
+    }
 
     void Awake()
     {
@@ -88,42 +95,48 @@ public class GameOverPanelController : MonoBehaviour
             Cursor.visible = true;
         }
 
-        titleText?.SetText("");
-        bodyText?.SetText("");
+        if (titleText) titleText.text = "";
+        if (bodyText) bodyText.text = "";
 
+        // เปิดรับอินเทอร์แอคชันหลังจากโชว์
         if (panelGroup)
         {
             panelGroup.blocksRaycasts = true;
             panelGroup.interactable = true;
         }
 
-        // Fade in
+        // ขั้นตอนเฟดเข้า
         float t = 0f;
         while (t < fadeDuration)
         {
             t += Time.unscaledDeltaTime;
-            SetAlpha(Mathf.Lerp(startAlpha, endAlpha, t / Mathf.Max(0.0001f, fadeDuration)));
+            float k = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeDuration));
+            SetAlpha(Mathf.Lerp(startAlpha, endAlpha, k));
             yield return null;
         }
         SetAlpha(endAlpha);
 
-        titleText?.SetText(title);
+        // ตั้ง Title แล้วเริ่มพิมพ์ดีด
+        if (titleText) titleText.text = title;
         onShown?.Invoke();
 
-        yield return Co_Type(bodyEn);
-        onTypingFinished?.Invoke();
+        _typing = true;
+        yield return StartCoroutine(Co_Type(bodyEn));
+        _typing = false;
 
+        onTypingFinished?.Invoke();
         _routine = null;
     }
 
     IEnumerator Co_Hide(float fadeOut)
     {
-        float start = panelGroup ? panelGroup.alpha : 1f;
+        float a0 = panelGroup ? panelGroup.alpha : 1f;
         float t = 0f;
         while (t < fadeOut)
         {
             t += Time.unscaledDeltaTime;
-            SetAlpha(Mathf.Lerp(start, 0f, t / Mathf.Max(0.0001f, fadeOut)));
+            float k = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeOut));
+            SetAlpha(Mathf.Lerp(a0, 0f, k));
             yield return null;
         }
         SetAlpha(0f);
@@ -133,7 +146,6 @@ public class GameOverPanelController : MonoBehaviour
             panelGroup.blocksRaycasts = false;
             panelGroup.interactable = false;
         }
-
         _routine = null;
     }
 
@@ -141,39 +153,44 @@ public class GameOverPanelController : MonoBehaviour
     {
         if (string.IsNullOrEmpty(full))
         {
-            bodyText?.SetText("");
+            if (bodyText) bodyText.text = "";
             yield break;
         }
 
-        int index = 0;
+        int shown = 0;
         float cps = Mathf.Max(1f, charsPerSecond);
         float perChar = 1f / cps;
         float acc = 0f;
+
         _nextTickAt = Time.unscaledTime;
 
-        var sb = new StringBuilder(full.Length);
-
-        while (index < full.Length)
+        while (shown < full.Length)
         {
-            if (allowSkipTyping && Input.anyKeyDown)
+            // skip typing?
+            if (allowSkipTyping && AnyKeyDownThisFrame())
             {
-                sb.Clear().Append(full);
-                bodyText?.SetText(sb.ToString());
-                typeAudioSource?.Stop();
+                shown = full.Length;
+                if (typeAudioSource) typeAudioSource.Stop();
                 break;
             }
 
             acc += Time.unscaledDeltaTime;
-            while (acc >= perChar && index < full.Length)
+            while (acc >= perChar && shown < full.Length)
             {
                 acc -= perChar;
-                sb.Append(full[index]);
-                index++;
+                shown++;
 
-                if (bodyText != null)
-                    bodyText.text = showCaret && index < full.Length ? sb.ToString() + caret : sb.ToString();
+                // อัปเดตข้อความ
+                if (bodyText)
+                {
+                    if (showCaret && shown < full.Length)
+                        bodyText.text = full.Substring(0, shown) + caret;
+                    else
+                        bodyText.text = full.Substring(0, shown);
+                }
 
-                if (typeAudioSource && typeTick != null && Time.unscaledTime >= _nextTickAt)
+                // เล่นเสียงพิมพ์ (ถ้ามี)
+                if (typeAudioSource && typeTick && Time.unscaledTime >= _nextTickAt)
                 {
                     typeAudioSource.PlayOneShot(typeTick, tickVolume);
                     _nextTickAt = Time.unscaledTime + Mathf.Max(0.001f, minTickInterval);
@@ -182,7 +199,15 @@ public class GameOverPanelController : MonoBehaviour
             yield return null;
         }
 
-        bodyText?.SetText(full);
+        // เคลียร์ caret ตอนจบ
+        if (bodyText)
+            bodyText.text = full;
+    }
+
+    bool AnyKeyDownThisFrame()
+    {
+        // ใช้ unscaled time / ไม่พึ่ง Input System โดยตรง เพื่อให้ทำงานได้ทุกโปรเจกต์
+        return Input.anyKeyDown;
     }
 
     void SetAlpha(float a)
@@ -191,7 +216,7 @@ public class GameOverPanelController : MonoBehaviour
         if (dimBackground)
         {
             var c = dimBackground.color;
-            c.a = Mathf.Clamp01(a * c.a);
+            c.a = Mathf.Clamp01(a * c.a); // รักษา base alpha ของภาพ
             dimBackground.color = c;
         }
     }

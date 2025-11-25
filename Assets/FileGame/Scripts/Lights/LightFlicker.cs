@@ -5,9 +5,10 @@ using UnityEngine;
 public class LightFlicker : MonoBehaviour
 {
     [Header("Target Light")]
-    public Light targetLight;
-
+    public Light targetLight;                     // ถ้าเว้นไว้จะดึงจากตัวเอง
+    [Tooltip("ความสว่างตอน 'ติด'")]
     public float onIntensity = 1f;
+    [Tooltip("ความสว่างตอน 'ดับ' (0 = มืด)")]
     public float offIntensity = 0f;
 
     [Header("Timing (random per cycle)")]
@@ -24,53 +25,56 @@ public class LightFlicker : MonoBehaviour
     public bool playOnStart = true;
 
     [Header("Sound on flicker")]
-    public AudioSource audioSource;
-    public AudioClip flickerClip;
+    public AudioSource audioSource;               // ถ้าเว้นไว้จะสร้างให้อัตโนมัติ
+    public AudioClip flickerClip;               // เสียงสั้น ๆ
     [Range(0f, 1f)] public float sfxVolume = 0.8f;
+    [Tooltip("สุ่ม pitch เล็กน้อยให้ไม่ซ้ำเดิม")]
     [Range(0f, 0.3f)] public float pitchJitter = 0.05f;
+    [Tooltip("เล่นเสียงเฉพาะตอนไฟ 'ติด' (ถ้าปิด = เล่นทั้งตอนติดและดับ)")]
     public bool playOnlyOnTurnOn = true;
 
     [Header("Optional: Emission (for meshes near the lamp)")]
-    public Renderer emissiveRenderer;
+    public Renderer emissiveRenderer;             // เช่น หัวหลอดไฟ
     public Color emissionOn = Color.white;
     public Color emissionOff = Color.black;
     [Range(0f, 5f)] public float emissionIntensity = 1.2f;
 
+    // runtime
     float _originalIntensity;
     bool _running;
     Coroutine _co;
 
-    // cache materials เพื่อไม่ให้สร้างใหม่เรื่อย ๆ
-    Material[] _emissionMats;
+    void Reset()
+    {
+        minOnTime = 0.07f; maxOnTime = 0.25f;
+        minOffTime = 0.04f; maxOffTime = 0.18f;
+        smoothFade = true; fadeSeconds = 0.05f;
+        sfxVolume = 0.8f; pitchJitter = 0.05f; playOnlyOnTurnOn = true;
+        emissionIntensity = 1.2f;
+    }
 
     void Awake()
     {
-        if (!targetLight)
-            targetLight = GetComponent<Light>();
-
+        if (!targetLight) targetLight = GetComponent<Light>();
         if (targetLight)
+        {
             _originalIntensity = targetLight.intensity;
+        }
 
         if (!audioSource)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.loop = false;
-            audioSource.spatialBlend = 1f;
+            audioSource.spatialBlend = 1f; // 3D (ปรับเป็น 0f ถ้าอยาก 2D)
         }
 
-        // ดึง materials แค่ครั้งเดียว
-        if (emissiveRenderer)
-        {
-            _emissionMats = emissiveRenderer.materials;
-            SetupEmission(emissionOff);
-        }
+        SetupEmission(emissiveRenderer, emissionOff);
     }
 
     void OnEnable()
     {
-        if (playOnStart)
-            StartFlicker();
+        if (playOnStart) StartFlicker();
     }
 
     void OnDisable()
@@ -81,12 +85,11 @@ public class LightFlicker : MonoBehaviour
 
     void RestoreDefaults()
     {
-        if (targetLight)
-            targetLight.intensity = _originalIntensity;
-
-        SetupEmission(emissionOff);
+        if (targetLight) targetLight.intensity = _originalIntensity;
+        SetupEmission(emissiveRenderer, emissionOff);
     }
 
+    // -------- Public Controls --------
     [ContextMenu("Start Flicker")]
     public void StartFlicker()
     {
@@ -101,11 +104,8 @@ public class LightFlicker : MonoBehaviour
         _running = false;
         if (_co != null) StopCoroutine(_co);
         _co = null;
-
-        if (targetLight)
-            targetLight.intensity = onIntensity;
-
-        SetupEmission(emissionOn);
+        if (targetLight) targetLight.intensity = onIntensity; // ค้างที่ติดไว้
+        SetupEmission(emissiveRenderer, emissionOn);
     }
 
     IEnumerator CoFlicker()
@@ -118,11 +118,11 @@ public class LightFlicker : MonoBehaviour
 
         while (_running)
         {
-            // ON
+            // ----- ON -----
             yield return ToggleLight(true);
             yield return new WaitForSeconds(Random.Range(minOnTime, maxOnTime));
 
-            // OFF
+            // ----- OFF -----
             yield return ToggleLight(false);
             yield return new WaitForSeconds(Random.Range(minOffTime, maxOffTime));
         }
@@ -130,14 +130,17 @@ public class LightFlicker : MonoBehaviour
 
     IEnumerator ToggleLight(bool turnOn)
     {
+        // Sound
         if (flickerClip && audioSource && (!playOnlyOnTurnOn || turnOn))
         {
             audioSource.pitch = 1f + Random.Range(-pitchJitter, pitchJitter);
             audioSource.PlayOneShot(flickerClip, sfxVolume);
         }
 
-        SetupEmission(turnOn ? emissionOn : emissionOff);
+        // Emission
+        SetupEmission(emissiveRenderer, turnOn ? emissionOn : emissionOff);
 
+        // Intensity
         if (!smoothFade || fadeSeconds <= 0f)
         {
             targetLight.intensity = turnOn ? onIntensity : offIntensity;
@@ -147,27 +150,26 @@ public class LightFlicker : MonoBehaviour
         float start = targetLight.intensity;
         float end = turnOn ? onIntensity : offIntensity;
         float t = 0f;
-
         while (t < fadeSeconds)
         {
             t += Time.deltaTime;
             float k = Mathf.Clamp01(t / fadeSeconds);
-            k = k * k * (3f - 2f * k); // smoothstep
+            // easeInOut
+            k = k * k * (3f - 2f * k);
             targetLight.intensity = Mathf.Lerp(start, end, k);
             yield return null;
         }
-
         targetLight.intensity = end;
     }
 
-    void SetupEmission(Color c)
+    void SetupEmission(Renderer r, Color c)
     {
-        if (_emissionMats == null) return;
-
-        foreach (var mat in _emissionMats)
+        if (!r) return;
+        foreach (var mat in r.materials)
         {
             if (!mat) continue;
             mat.EnableKeyword("_EMISSION");
+            // HDR emission: คูณความสว่าง
             Color hdr = c * Mathf.LinearToGammaSpace(emissionIntensity);
             mat.SetColor("_EmissionColor", hdr);
         }

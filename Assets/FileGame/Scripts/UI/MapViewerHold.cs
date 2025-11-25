@@ -36,10 +36,7 @@ public class MapViewerHold : MonoBehaviour
     [Header("Options")]
     public bool lockTimeScale = false;              // เปิด map แล้วหยุดเวลา
     [Range(0f, 1f)] public float timeScaleWhileOpen = 0f;
-
-    [Tooltip("ให้สคริปต์นี้จัดการ lockState/visible ของ cursor ตอนเปิด/ปิด map")]
-    public bool lockCursor = true;                  // ตอนนี้: เปิด map ก็ยังซ่อน cursor เหมือนเดิม
-
+    public bool lockCursor = true;                  // เปิด map → ปลดล็อกเมาส์
     public bool disablePlayerLookWhileOpen = false; // ถ้ามีระบบมุมกล้อง ให้ปิดตอนเปิดแผนที่
 
     [Header("Fallback message (ถ้าไม่ใช้ hintGroup)")]
@@ -73,21 +70,19 @@ public class MapViewerHold : MonoBehaviour
         }
     }
 
-    void OnEnable()
-    {
-        // ค่าเริ่มต้น: ซ่อน cursor + ล็อกเหมือน FPS ทั่วไป
-        Cursor.visible = false;
+    void OnEnable() 
+    { 
         Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         holdAction?.action?.Enable();
-    }
 
-    void OnDisable()
+    }
+    void OnDisable() 
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        holdAction?.action?.Disable();
-        SetOpen(false, true);
-        HideHint(true);
+        holdAction?.action?.Disable(); 
+        SetOpen(false, true); HideHint(true); 
     }
 
     void Update()
@@ -167,47 +162,37 @@ public class MapViewerHold : MonoBehaviour
     {
         _isOpen = open;
 
-        // จัดการ UI (กรณีไม่ใช้ fadeGroup)
-        if (fadeGroup == null && mapRoot)
-            mapRoot.SetActive(open);
+        // จัดการ UI
+        if (fadeGroup == null && mapRoot) mapRoot.SetActive(open); // ถ้าไม่ใช้เฟด
 
         // จัดการ timeScale/cursor/ล็อกอื่น ๆ
         if (open && !_appliedLocks)
         {
-            if (lockTimeScale)
-                Time.timeScale = timeScaleWhileOpen;
-
+            if (lockTimeScale) Time.timeScale = timeScaleWhileOpen;
             if (lockCursor)
             {
-                // ✅ เวอร์ชันใหม่: เปิด map ก็ยัง "ซ่อน cursor + Lock" เหมือนเดิม
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
             }
-
             if (disablePlayerLookWhileOpen)
             {
-                // TODO: ถ้ามี script กล้อง ให้ไปปิด/เปิดเองตรงนี้
-                // var look = GetComponentInChildren<YourLookScript>();
-                // if (look) look.enabled = false;
+                // ถ้ามีสคริปต์กล้องของผู้เล่น ใส่ปิด/เปิดเองที่นี่ (หาและ disable ถ้ามี)
+                var look = GetComponentInChildren<MonoBehaviour>();
+                // ต่อเองตามโปรเจกต์
             }
-
             _appliedLocks = true;
             onMapOpened?.Invoke();
             if (debugLogs) Debug.Log("[MapViewerHold] Open");
         }
         else if (!open && _appliedLocks)
         {
-            if (lockTimeScale)
-                Time.timeScale = 1f;
-
+            if (lockTimeScale) Time.timeScale = 1f;
             if (lockCursor)
             {
-                // กลับมาสภาพ default: ซ่อน cursor + Lock
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
-
-            // TODO: ถ้าเคยปิด look script ตอนเปิด map ให้เปิดกลับตรงนี้
+            // re-enable look script ถ้าปิดไว้
             _appliedLocks = false;
             onMapClosed?.Invoke();
             if (debugLogs) Debug.Log("[MapViewerHold] Close");

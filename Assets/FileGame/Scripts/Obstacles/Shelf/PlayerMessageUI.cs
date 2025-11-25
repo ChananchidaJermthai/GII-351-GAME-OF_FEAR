@@ -10,10 +10,7 @@ public class PlayerMessageUI : MonoBehaviour
     public void ShowMessage(string text, float duration = 2f)
     {
         if (!messageText) return;
-
-        // หยุด Coroutine เก่า ถ้ามี
         if (_co != null) StopCoroutine(_co);
-
         _co = StartCoroutine(Routine(text, duration));
     }
 

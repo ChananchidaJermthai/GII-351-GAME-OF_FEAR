@@ -69,9 +69,13 @@ public class AmbientRoomAudioManager : MonoBehaviour
     // === Global Ducking (Focus Event) ===
     [Header("Global Ducking (Focus Event)")]
     public bool enableGlobalDucking = true;
+    [Tooltip("ระดับลดเสียงของ ambience ระหว่างโฟกัสอีเวนต์ (0 = เงียบ, 1 = ปกติ)")]
     [Range(0f, 1f)] public float duckTarget = 0.25f;
+    [Tooltip("เวลาลดเสียงให้ถึง duckTarget")]
     [Range(0.01f, 2f)] public float duckAttack = 0.06f;
+    [Tooltip("เวลาค้างโฟกัส")]
     [Range(0f, 3f)] public float duckHold = 0.8f;
+    [Tooltip("เวลาคลายกลับปกติ")]
     [Range(0.01f, 2f)] public float duckRelease = 0.6f;
 
     float _duck = 1f;
@@ -114,50 +118,28 @@ public class AmbientRoomAudioManager : MonoBehaviour
             transform.localPosition = Vector3.zero;
         }
 
-        // setup defaultSource
         if (usePlayersAudioSources && defaultSourceFromPlayer)
         {
             defaultSource = defaultSourceFromPlayer;
-            defaultSource.loop = true;
-            defaultSource.playOnAwake = false;
+            defaultSource.loop = true; defaultSource.playOnAwake = false;
         }
         else
         {
             defaultSource = gameObject.GetComponent<AudioSource>();
             if (!defaultSource) defaultSource = gameObject.AddComponent<AudioSource>();
-            defaultSource.loop = true;
-            defaultSource.playOnAwake = false;
-            defaultSource.spatialBlend = 1f;
-            defaultSource.volume = 1f;
-            defaultSource.clip = defaultClip;
+            defaultSource.loop = true; defaultSource.playOnAwake = false;
+            defaultSource.spatialBlend = 1f; // set 0 for 2D ambience
+            defaultSource.volume = 1f; defaultSource.clip = defaultClip;
         }
 
-        // room mixer
         var mixerGO = new GameObject("RoomMixer");
         mixerGO.transform.SetParent(transform, false);
         roomMixerRoot = mixerGO.transform;
 
-        // preallocate first roomSource
         if (usePlayersAudioSources && roomSourceFromPlayer)
         {
-            PrepareSource(roomSourceFromPlayer, defaultSource.spatialBlend);
+            PrepareSource(roomSourceFromPlayer, defaultSource ? defaultSource.spatialBlend : 1f);
             roomSources.Add(roomSourceFromPlayer);
-        }
-
-        // preallocate max possible roomSources
-        int maxClips = 0;
-        if (roomClips != null)
-            foreach (var rm in roomClips)
-                if (rm?.clips != null)
-                    maxClips = Mathf.Max(maxClips, rm.clips.Count);
-
-        for (int i = roomSources.Count; i < maxClips; i++)
-        {
-            var go = new GameObject("RoomTrack_" + i);
-            go.transform.SetParent(roomMixerRoot, false);
-            var src = go.AddComponent<AudioSource>();
-            PrepareSource(src, defaultSource.spatialBlend);
-            roomSources.Add(src);
         }
     }
 
@@ -174,41 +156,47 @@ public class AmbientRoomAudioManager : MonoBehaviour
 
     void Update()
     {
-        float dt = Mathf.Max(Time.deltaTime, 0.0001f);
-
-        // smooth roomBus
         string cur = CurrentRoomId;
-        float targetBus = string.IsNullOrEmpty(cur) ? 0f : roomBusTarget;
-        roomBus = Mathf.Lerp(roomBus, targetBus, 1f - Mathf.Exp(-fadeToRoomTime * dt));
 
-        float duckMultiplier = _duckActive ? SmoothDuck(dt) : 1f;
+        if (string.IsNullOrEmpty(cur))
+            roomBus = Mathf.MoveTowards(roomBus, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+        else
+            roomBus = Mathf.MoveTowards(roomBus, roomBusTarget, Time.deltaTime / Mathf.Max(0.01f, fadeToRoomTime));
+
+        float duckMultiplier = 1f;
+        if (_duckActive)
+        {
+            if (_duckTimerAttack > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, _duckGoal, Time.deltaTime / _duckTimerAttack);
+                _duckTimerAttack -= Time.deltaTime;
+                if (_duckTimerAttack <= 0f) _duck = _duckGoal;
+            }
+            else if (_duckTimerHold > 0f)
+            {
+                _duckTimerHold -= Time.deltaTime;
+                _duck = _duckGoal;
+            }
+            else if (_duckTimerRelease > 0f)
+            {
+                _duck = Mathf.MoveTowards(_duck, 1f, Time.deltaTime / _duckTimerRelease);
+                _duckTimerRelease -= Time.deltaTime;
+                if (_duckTimerRelease <= 0f) { _duck = 1f; _duckActive = false; }
+            }
+            duckMultiplier = _duck;
+        }
+        else
+        {
+            _duck = 1f;
+            duckMultiplier = 1f;
+        }
 
         ApplyBusToRoomTracks(roomBus, duckMultiplier);
 
-        float baseDefault = Mathf.Clamp01(defaultVolume) * (1f - roomBus) * duckMultiplier;
-        defaultSource.volume = Mathf.Lerp(defaultSource.volume, baseDefault, 1f - Mathf.Exp(-fadeToDefaultTime * dt));
-        if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
-    }
+        float baseDefault = Mathf.Clamp01(defaultVolume) * (1f - roomBus);
+        defaultSource.volume = baseDefault * duckMultiplier;
 
-    float SmoothDuck(float dt)
-    {
-        if (_duckTimerAttack > 0f)
-        {
-            _duck = Mathf.Lerp(_duck, _duckGoal, 1f - Mathf.Exp(-_duckTimerAttack * dt));
-            _duckTimerAttack -= dt;
-        }
-        else if (_duckTimerHold > 0f)
-        {
-            _duckTimerHold -= dt;
-            _duck = _duckGoal;
-        }
-        else if (_duckTimerRelease > 0f)
-        {
-            _duck = Mathf.Lerp(_duck, 1f, 1f - Mathf.Exp(-_duckTimerRelease * dt));
-            _duckTimerRelease -= dt;
-            if (_duckTimerRelease <= 0f) _duckActive = false;
-        }
-        return _duck;
+        if (defaultSource.clip && !defaultSource.isPlaying) defaultSource.Play();
     }
 
     public void OnZoneEnter(GameObject zoneGO, Collider zoneCol)
@@ -238,9 +226,7 @@ public class AmbientRoomAudioManager : MonoBehaviour
             zoneIdByCollider.Remove(zoneCol);
 
             bool stillAny = false;
-            foreach (var kv in zoneIdByCollider)
-                if (kv.Value == id) { stillAny = true; break; }
-
+            foreach (var kv in zoneIdByCollider) { if (kv.Value == id) { stillAny = true; break; } }
             if (!stillAny) activeRoomStack.Remove(id);
 
             ApplyRoom(CurrentRoomId);
@@ -260,6 +246,7 @@ public class AmbientRoomAudioManager : MonoBehaviour
         {
             currentRoomConfig = cfg;
             roomBusTarget = Mathf.Clamp01(cfg.busVolume);
+            RebuildRoomTracks(cfg);
         }
         else
         {
@@ -268,22 +255,72 @@ public class AmbientRoomAudioManager : MonoBehaviour
         }
     }
 
+    void RebuildRoomTracks(RoomMap cfg)
+    {
+        int need = Mathf.Max(0, cfg.clips?.Count ?? 0);
+
+        while (roomSources.Count < need)
+        {
+            var go = new GameObject("RoomTrack_" + roomSources.Count);
+            go.transform.SetParent(roomMixerRoot, false);
+            var src = go.AddComponent<AudioSource>();
+            PrepareSource(src, defaultSource ? defaultSource.spatialBlend : 1f);
+            roomSources.Add(src);
+        }
+        while (roomSources.Count > need)
+        {
+            var last = roomSources[roomSources.Count - 1];
+            if (last) Destroy(last.gameObject);
+            roomSources.RemoveAt(roomSources.Count - 1);
+        }
+
+        for (int i = 0; i < need; i++)
+        {
+            var sc = cfg.clips[i];
+            var s = roomSources[i];
+
+            if (s.clip != sc.clip)
+            {
+                s.clip = sc.clip;
+                if (roomBusTarget > 0f && sc.clip) s.Play();
+            }
+            s.loop = sc.loop;
+        }
+    }
+
     void ApplyBusToRoomTracks(float bus, float duckMultiplier)
     {
-        if (currentRoomConfig?.clips == null) return;
-
-        for (int i = 0; i < currentRoomConfig.clips.Count; i++)
+        if (currentRoomConfig != null && currentRoomConfig.clips != null)
         {
-            var s = roomSources[i];
-            var sc = currentRoomConfig.clips[i];
-            if (!s || sc == null) continue;
+            for (int i = 0; i < roomSources.Count; i++)
+            {
+                var s = roomSources[i];
+                var sc = i < currentRoomConfig.clips.Count ? currentRoomConfig.clips[i] : null;
+                if (s == null || sc == null) continue;
 
-            float target = Mathf.Clamp01(bus) * Mathf.Clamp01(sc.volume) * duckMultiplier;
-            s.volume = Mathf.Lerp(s.volume, target, 1f - Mathf.Exp(-fadeToRoomTime * Time.deltaTime));
+                float target = Mathf.Clamp01(bus) * Mathf.Clamp01(sc.volume);
+                target *= duckMultiplier;
 
-            // hysteresis
-            if (target > 0.02f && !s.isPlaying) s.Play();
-            if (target < 0.005f && s.isPlaying) s.Stop();
+                if (target > 0.01f)
+                {
+                    if (sc.clip && !s.isPlaying) s.Play();
+                    s.volume = target;
+                }
+                else
+                {
+                    s.volume = Mathf.MoveTowards(s.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+                    if (s.isPlaying && s.volume <= 0.01f) s.Stop();
+                }
+            }
+        }
+        else
+        {
+            foreach (var s in roomSources)
+            {
+                if (!s) continue;
+                s.volume = Mathf.MoveTowards(s.volume, 0f, Time.deltaTime / Mathf.Max(0.01f, fadeToDefaultTime));
+                if (s.isPlaying && s.volume <= 0.01f) s.Stop();
+            }
         }
     }
 
@@ -291,25 +328,30 @@ public class AmbientRoomAudioManager : MonoBehaviour
     {
         src.playOnAwake = false;
         src.loop = true;
-        src.spatialBlend = spatial;
+        src.spatialBlend = spatial; // 1 = 3D, 0 = 2D
         src.volume = 0f;
     }
 
     string GetRoomId(GameObject zone, Collider col)
     {
         if (idSource == IdSource.Tag) return zone ? zone.tag : null;
-        return col?.sharedMaterial?.name;
+        var pm = col ? col.sharedMaterial : null;
+        return pm ? pm.name : null;
     }
 
     bool TryGetRoomConfig(string id, out RoomMap cfg)
     {
         if (roomClips != null)
+        {
             foreach (var rm in roomClips)
+            {
                 if (rm != null && rm.id == id)
                 {
                     cfg = rm;
                     return true;
                 }
+            }
+        }
         cfg = null;
         return false;
     }

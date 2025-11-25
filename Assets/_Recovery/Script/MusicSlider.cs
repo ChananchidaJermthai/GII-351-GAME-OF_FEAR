@@ -10,10 +10,14 @@ public class MusicSlider : MonoBehaviour
     {
         // โหลดค่าที่เคยเซฟไว้
         float vol = PlayerPrefs.GetFloat("bgm_volume", 0.8f);
-        slider.value = vol;
+
+        // ตั้งค่า slider โดยไม่ให้ยิง event
+        slider.SetValueWithoutNotify(vol);
+
+        // ตั้งค่าเสียงตามที่เคยเซฟ
         musicSource.volume = vol;
 
-        // ผูก event เวลาขยับ slider
+        // ผูก event (หลังจากตั้งค่า default เสร็จแล้ว)
         slider.onValueChanged.AddListener(SetVolume);
     }
 

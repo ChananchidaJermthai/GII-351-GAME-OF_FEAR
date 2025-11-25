@@ -7,25 +7,25 @@ using UnityEngine.UI;
 public class PauseMenuController : MonoBehaviour
 {
     [Header("UI")]
-    public GameObject menuRoot;
-    public CanvasGroup menuGroup;
+    public GameObject menuRoot;        // กล่อง UI ของ Pause Menu (ซ่อน/แสดง)
+    public CanvasGroup menuGroup;      // (ถ้ามี) ใช้เฟดนุ่ม ๆ ตอนเปิด/ปิด
     public float fadeSpeed = 12f;
 
     [Header("Input")]
-    public InputActionReference pauseAction;
+    public InputActionReference pauseAction; // (แนะนำ) Action ปุ่ม Pause (เช่น ESC)
 #if ENABLE_INPUT_SYSTEM
-    public Key fallbackKey = Key.Escape;
+    public Key fallbackKey = Key.Escape;     // กรณีไม่ได้ตั้ง Action
 #else
     public KeyCode legacyKey = KeyCode.Escape;
 #endif
 
     [Header("Flow")]
-    public string mainMenuSceneName = "";
-    public int mainMenuSceneIndex = -1;
-    public bool pauseAudio = true;
+    public string mainMenuSceneName = "";    // ชื่อซีนเมนูหลัก (เว้นว่างถ้าไม่ใช้)
+    public int mainMenuSceneIndex = -1;      // หรือใช้ index (>=0)
+    public bool pauseAudio = true;           // หยุดเสียงระหว่างพักเกม
 
     [Header("Player Control Lock")]
-    public MonoBehaviour[] scriptsToDisable;
+    public MonoBehaviour[] scriptsToDisable; // สคริปต์ควบคุมผู้เล่น/กล้องที่ต้องปิดตอนพักเกม (เช่น PlayerController3D)
 
     [Header("Cursor")]
     public bool unlockCursorOnPause = true;
@@ -47,12 +47,13 @@ public class PauseMenuController : MonoBehaviour
 
     void Update()
     {
-        if (ShouldTogglePause()) TogglePause();
+        if (ShouldTogglePause())
+            TogglePause();
 
-        // Smooth fade
+        // เฟด UI (ถ้ามี CanvasGroup)
         if (menuGroup)
         {
-            float target = isPaused ? 1f : 0f;
+            float target = (isPaused ? 1f : 0f);
             float k = 1f - Mathf.Exp(-fadeSpeed * Time.unscaledDeltaTime);
             menuGroup.alpha = Mathf.Lerp(menuGroup.alpha, target, k);
         }
@@ -60,7 +61,8 @@ public class PauseMenuController : MonoBehaviour
 
     bool ShouldTogglePause()
     {
-        if (pauseAction?.action != null) return pauseAction.action.WasPressedThisFrame();
+        if (pauseAction && pauseAction.action != null)
+            return pauseAction.action.WasPressedThisFrame();
 
 #if ENABLE_INPUT_SYSTEM
         return Keyboard.current != null && Keyboard.current[fallbackKey].wasPressedThisFrame;
@@ -103,14 +105,15 @@ public class PauseMenuController : MonoBehaviour
         if (!isPaused) return;
         isPaused = false;
 
-        Time.timeScale = prevTimeScale > 0f ? prevTimeScale : 1f;
+        Time.timeScale = prevTimeScale <= 0f ? 1f : prevTimeScale;
         if (pauseAudio) AudioListener.pause = false;
 
-        if (menuGroup) menuGroup.blocksRaycasts = false;
-        if (menuRoot && menuGroup == null) menuRoot.SetActive(false);
+        if (menuGroup) { menuGroup.blocksRaycasts = false; }
+        if (menuRoot) { if (!menuGroup) menuRoot.SetActive(false); }
 
         SetScriptsEnabled(true);
 
+        // กลับไปล็อกเมาส์ตามเกมปกติ
         if (unlockCursorOnPause)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -132,6 +135,7 @@ public class PauseMenuController : MonoBehaviour
 
     public void OnClick_MainMenu()
     {
+        // เผื่อเธอใส่ปุ่มในเมนู—เรียกโหลดซีนเมนูหลัก
         Time.timeScale = 1f;
         if (pauseAudio) AudioListener.pause = false;
 
@@ -140,13 +144,14 @@ public class PauseMenuController : MonoBehaviour
         else if (mainMenuSceneIndex >= 0)
             SceneManager.LoadScene(mainMenuSceneIndex);
         else
-            Debug.LogWarning("[PauseMenu] mainMenuScene not set");
+            Debug.LogWarning("[PauseMenu] mainMenuScene ไม่ได้ตั้งค่า");
     }
 
     public void OnClick_Exit()
     {
         Time.timeScale = 1f;
         if (pauseAudio) AudioListener.pause = false;
+        Application.Quit();
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;

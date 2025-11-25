@@ -6,21 +6,25 @@ using UnityEngine.UI;
 public class StartIntroBlackout : MonoBehaviour
 {
     [Header("Player Lock (ใส่สคริปต์ที่ควบคุมการเดิน/กล้อง)")]
-    public MonoBehaviour[] movementScriptsToDisable;
+    public MonoBehaviour[] movementScriptsToDisable;  // เช่น PlayerController3D, LookController
 
     [Header("Overlay (ถ้าไม่ใส่ จะสร้างให้อัตโนมัติ)")]
-    public Image blackOverlay;
+    public Image blackOverlay;          // UI > Image สีดำเต็มจอ
     public bool destroyOverlayAfter = true;
 
     [Header("Effect Timing")]
-    public float flickerDuration = 1f;
+    [Tooltip("เวลาที่กระพริบจอดำ")]
+    public float flickerDuration = 1.0f;
+    [Tooltip("ความถี่การกระพริบ (ครั้ง/วินาที)")]
     public float flickerFrequency = 8f;
     [Range(0f, 1f)] public float flickerMaxAlpha = 0.9f;
+
+    [Tooltip("เวลาเฟดหาย")]
     public float fadeOutDuration = 0.8f;
 
     [Header("Options")]
-    public bool unlockCursorAfter = false;
-    public bool useUnscaledTime = true;
+    public bool unlockCursorAfter = false; // true ถ้าต้องปลดล็อกเมาส์หลังจบ
+    public bool useUnscaledTime = true;    // ใช้เวลาแบบไม่ผูกกับ Time.timeScale
 
     Canvas _autoCanvas;
     GameObject _overlayRoot;
@@ -28,43 +32,45 @@ public class StartIntroBlackout : MonoBehaviour
     void Start()
     {
         Cursor.visible = false;
+        // ล็อกผู้เล่น
         SetPlayerLock(true);
+
+        // เตรียม Overlay
         EnsureOverlay();
+
+        // เริ่มเอฟเฟกต์
         StartCoroutine(Co_Run());
     }
 
     IEnumerator Co_Run()
     {
-        if (!blackOverlay) yield break;
-
-        // เริ่มจากโปร่งใส
+        // ตั้งค่าเริ่มต้น
         SetOverlayAlpha(0f);
 
-        // Flicker phase
+        // กระพริบ
         float t = 0f;
         while (t < flickerDuration)
         {
             t += Dt();
             float phase = t * flickerFrequency * Mathf.PI * 2f;
-            float alpha = Mathf.Abs(Mathf.Sin(phase)) * flickerMaxAlpha;
-            SetOverlayAlpha(alpha);
+            float a = Mathf.Abs(Mathf.Sin(phase)) * flickerMaxAlpha;
+            SetOverlayAlpha(a);
             yield return null;
         }
 
-        // Fade out
+        // เฟดออก
         float ft = 0f;
-        float startAlpha = blackOverlay.color.a;
+        float startA = blackOverlay ? blackOverlay.color.a : 1f;
         while (ft < fadeOutDuration)
         {
             ft += Dt();
             float k = Mathf.Clamp01(ft / Mathf.Max(0.0001f, fadeOutDuration));
-            SetOverlayAlpha(Mathf.Lerp(startAlpha, 0f, k));
+            SetOverlayAlpha(Mathf.Lerp(startA, 0f, k));
             yield return null;
         }
-
         SetOverlayAlpha(0f);
 
-        // Unlock player
+        // ปลดล็อกผู้เล่น + เก็บกวาด
         SetPlayerLock(false);
 
         if (unlockCursorAfter)
@@ -73,11 +79,11 @@ public class StartIntroBlackout : MonoBehaviour
             Cursor.visible = true;
         }
 
-        // Cleanup overlay
         if (destroyOverlayAfter && _overlayRoot) Destroy(_overlayRoot);
         else if (blackOverlay) blackOverlay.gameObject.SetActive(false);
     }
 
+    // ===== helpers =====
     void EnsureOverlay()
     {
         if (blackOverlay) return;
@@ -113,7 +119,8 @@ public class StartIntroBlackout : MonoBehaviour
         if (movementScriptsToDisable == null) return;
         foreach (var mb in movementScriptsToDisable)
         {
-            if (mb != null) mb.enabled = !locked;
+            if (!mb) continue;
+            mb.enabled = !locked;
         }
     }
 
