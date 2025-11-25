@@ -59,9 +59,13 @@ public class Shelf : MonoBehaviour
     [Header("SFX")]
     public AudioSource audioSource;
     public AudioClip openSfx;
+    public AudioClip openWoodCrackSfx;
     public AudioClip closeSfx;
     public AudioClip lockedSfx;
     public AudioClip lockedSfx2;
+
+    [Header("Destroy When Open")]
+    public GameObject Wood;
 
     [Range(0f, 1f)] public float sfxVolume = 1f;
     [Tooltip("ดีเลย์ระหว่าง lockedSfx -> lockedSfx2 (วินาที)")]
@@ -273,7 +277,8 @@ public class Shelf : MonoBehaviour
 
         var sfx = toOpen ? openSfx : closeSfx;
         if (sfx) audioSource.PlayOneShot(sfx, sfxVolume);
-
+            audioSource.PlayOneShot(openWoodCrackSfx);
+        DestroyWood();
         float t = 0f;
         while (t < 1f)
         {
@@ -348,6 +353,18 @@ public class Shelf : MonoBehaviour
         var p = d.door.position;
         Gizmos.DrawLine(p, p + axisVec * 0.25f);
         Gizmos.DrawSphere(p + axisVec * 0.25f, 0.01f);
+    }
+    void DestroyWood()
+    {
+        // 1. ตรวจสอบว่าตัวแปร 'Wood' มีค่าหรือไม่ เพื่อป้องกัน Error
+        if (Wood != null)
+        {
+            // 2. ทำลาย GameObject ที่ถูกเก็บไว้ในตัวแปร 'Wood'
+            Destroy(Wood);
+
+            // (เสริม) หากคุณต้องการทำลายตัวมันเองทันทีที่ทำลาย Wood เสร็จ
+            // Destroy(gameObject); 
+        }
     }
 }
 
