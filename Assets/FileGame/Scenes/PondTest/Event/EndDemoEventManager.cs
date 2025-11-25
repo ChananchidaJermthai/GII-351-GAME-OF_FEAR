@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
 
 public class EndDemoEventManager : MonoBehaviour
 {
@@ -172,11 +174,19 @@ public class EndDemoEventManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        if (pauseGameOnEnd)
+            Time.timeScale = 0f;
+
+
         // 8) Fade Out เสียงทั้งหมดก่อน Freeze
         yield return StartCoroutine(FadeOutAllAudio(0.4f)); 
 
         if (pauseGameOnEnd)
             Time.timeScale = 0f;
+
+        // 9) โหลดฉากหลังจากขึ้น UI 4 วินาที
+        StartCoroutine(LoadMenuAfterDelay());
+
 
     }
     private IEnumerator FadeOutAllAudio(float duration)
@@ -209,6 +219,16 @@ public class EndDemoEventManager : MonoBehaviour
             if (audios[i] != null)
                 audios[i].volume = 0f;
         }
+    }
+    private IEnumerator LoadMenuAfterDelay()
+    {
+        // รอ 4 วิ ด้วย unscaled time (เพราะเกม freeze)
+        yield return new WaitForSecondsRealtime(4f);
+
+        // ปลด freeze ก่อนโหลด
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene("MainMenu");
     }
 
 }
