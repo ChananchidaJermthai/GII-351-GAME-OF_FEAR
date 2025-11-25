@@ -127,6 +127,9 @@ public class EndDemoEventManager : MonoBehaviour
         {
             yield return new WaitForSeconds(firstHoldTime);
         }
+        // ✅ เปิดผีตัวที่สอง ตอนจะหันไปหา
+        if (secondGhostRoot != null)
+            secondGhostRoot.SetActive(true);
 
         // 4) เล่นเสียงจากด้านหลังอีกครั้ง
         if (behindSfx2)
@@ -134,9 +137,7 @@ public class EndDemoEventManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // ✅ เปิดผีตัวที่สอง ตอนจะหันไปหา
-        if (secondGhostRoot != null)
-            secondGhostRoot.SetActive(true);
+        
 
         // 5) หันกล้องกลับไปหา ผีตัวที่สอง แบบไวๆ
         if (secondGhostFaceRoot)
