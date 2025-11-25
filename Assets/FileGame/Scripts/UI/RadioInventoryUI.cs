@@ -39,6 +39,8 @@ public class RadioInventoryUI : MonoBehaviour
     float _customSeconds;
     Transform _radioTf;
     Transform _playerTf;
+
+    // 🔹 Pool ของปุ่ม (ไม่ Destroy เวลารีเฟรช)
     readonly List<Button> _spawned = new List<Button>();
     readonly List<int> _indexMap = new List<int>();
 
@@ -61,7 +63,6 @@ public class RadioInventoryUI : MonoBehaviour
 
     void OnDisable()
     {
-        // ถ้าโดนปิดวัตถุ/เปลี่ยนซีนตอนกำลังเปิด UI ให้คืน Cursor/Unfreeze ให้ครบ
         if (_cursorOverridden) RestoreCursor();
         TryFreezePlayerControls(false);
     }
@@ -94,15 +95,6 @@ public class RadioInventoryUI : MonoBehaviour
             return;
         }
 
-        // กันเปิดซ้ำ: ถ้าเปิดอยู่แล้ว ให้เพียง Rebuild รายการ แล้ว return
-        if (IsOpen)
-        {
-            if (verboseLog) Debug.Log("[RadioInventoryUI] Open(): UI เปิดอยู่แล้ว → รีเฟรชปุ่มอย่างเดียว");
-            _radio = radio; _mode = mode; _customSeconds = customSeconds; _radioTf = radio.transform; _playerTf = player;
-            RebuildButtons();
-            return;
-        }
-
         _radio = radio;
         _mode = mode;
         _customSeconds = customSeconds;
@@ -115,8 +107,12 @@ public class RadioInventoryUI : MonoBehaviour
         if (panelRoot) panelRoot.SetActive(true);
 
         // เซฟสถานะ cursor เฉพาะตอนเปลี่ยนจาก “ปิด → เปิด”
-        _prevLock = Cursor.lockState;
-        _prevVisible = Cursor.visible;
+        if (!_cursorOverridden)
+        {
+            _prevLock = Cursor.lockState;
+            _prevVisible = Cursor.visible;
+        }
+
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
         _cursorOverridden = true;
@@ -127,9 +123,7 @@ public class RadioInventoryUI : MonoBehaviour
 
     public void Close()
     {
-        // คืน cursor เฉพาะถ้าเราเป็นคนเปลี่ยน
         if (_cursorOverridden) RestoreCursor();
-
         TryFreezePlayerControls(false);
 
         if (panelRoot) panelRoot.SetActive(false);
@@ -196,7 +190,7 @@ public class RadioInventoryUI : MonoBehaviour
 
     void RebuildButtons()
     {
-        ClearButtons();
+        ClearButtons(); // ตอนนี้คือซ่อน + ล้าง indexMap ไม่ Destroy
 
         if (!_radio || _radio.tapes == null || _radio.tapes.Count == 0)
         {
@@ -211,11 +205,21 @@ public class RadioInventoryUI : MonoBehaviour
         {
             var t = _radio.tapes[i];
             int cnt = _radio.playerInventory ? _radio.playerInventory.GetCount(t.tapeKeyId) : 0;
-
             if (cnt <= 0) continue;
 
-            var btn = Instantiate(buttonPrefab, buttonsParent);
-            _spawned.Add(btn);
+            // 🔹 ใช้ปุ่มจาก pool ก่อน ถ้าไม่พอค่อย Instantiate ใหม่
+            Button btn;
+            if (availableCount < _spawned.Count && _spawned[availableCount] != null)
+            {
+                btn = _spawned[availableCount];
+            }
+            else
+            {
+                btn = Instantiate(buttonPrefab, buttonsParent);
+                _spawned.Add(btn);
+            }
+
+            btn.gameObject.SetActive(true);
             _indexMap.Add(i);
 
             var label = btn.GetComponentInChildren<TMP_Text>();
@@ -237,17 +241,25 @@ public class RadioInventoryUI : MonoBehaviour
         else
         {
             SetHeader("Select the tape you want to play.");
-            SetHint(enableNumberHotkeys ? "Click the button or press the numbers 1–9 • ESC to close."
-                                        : "Click the button to select • ESC to close.");
+            SetHint(enableNumberHotkeys
+                ? "Click the button or press the numbers 1–9 • ESC to close."
+                : "Click the button to select • ESC to close.");
         }
     }
 
     void ClearButtons()
     {
-        foreach (var b in _spawned) if (b) Destroy(b.gameObject);
-        _spawned.Clear();
+        // 🔹 แทน Destroy: แค่ซ่อน + reset onClick เพื่อลด GC และการจองแรมใหม่
+        foreach (var b in _spawned)
+        {
+            if (!b) continue;
+            b.onClick.RemoveAllListeners();
+            b.gameObject.SetActive(false);
+        }
+
         _indexMap.Clear();
-        SetHeader(""); SetHint("");
+        SetHeader("");
+        SetHint("");
     }
 
     void OnPick(int tapeIndex)
@@ -319,6 +331,12 @@ public class RadioInventoryUI : MonoBehaviour
             var playerType = System.Type.GetType("PlayerControllerTest");
             if (playerType != null)
                 _playerCtrl = _playerTf.GetComponentInParent(playerType);
+
+            if (_playerCtrl == null)
+            {
+                var pc3d = _playerTf.GetComponentInParent<PlayerController3D>();
+                if (pc3d != null) _playerCtrl = pc3d;
+            }
         }
         if (_playerCtrl == null) return;
 
@@ -326,14 +344,21 @@ public class RadioInventoryUI : MonoBehaviour
 
         void SetFloat(string name, ref float backup, float newVal)
         {
-            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup < 0f) backup = (float)f.GetValue(_playerCtrl);
             f.SetValue(_playerCtrl, newVal);
         }
+
         void Restore(string name, ref float backup)
         {
-            var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            var f = t.GetField(name,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
             if (f == null || f.FieldType != typeof(float)) return;
             if (backup >= 0f) f.SetValue(_playerCtrl, backup);
             backup = -1f;
@@ -344,7 +369,10 @@ public class RadioInventoryUI : MonoBehaviour
             if (lockLookOnOpen)
             {
                 SetFloat("mouseSensitivityX", ref _prevMouseX, 0f);
+                SetFloat("sensX", ref _prevMouseX, 0f);
+
                 SetFloat("mouseSensitivityY", ref _prevMouseY, 0f);
+                SetFloat("sensY", ref _prevMouseY, 0f);
             }
             if (lockMoveOnOpen)
             {
@@ -358,7 +386,10 @@ public class RadioInventoryUI : MonoBehaviour
             if (lockLookOnOpen)
             {
                 Restore("mouseSensitivityX", ref _prevMouseX);
+                Restore("sensX", ref _prevMouseX);
+
                 Restore("mouseSensitivityY", ref _prevMouseY);
+                Restore("sensY", ref _prevMouseY);
             }
             if (lockMoveOnOpen)
             {
