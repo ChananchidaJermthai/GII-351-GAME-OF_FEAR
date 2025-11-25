@@ -28,7 +28,15 @@ public class DiaryFirstPickupToast : MonoBehaviour
 
     void Awake()
     {
-        if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
+
+        // หาผู้เล่น/Inventory แบบปลอดภัย
+        if (!inventory)
+        {
+            inventory = FindFirstObjectByType<InventoryLite>();
+            if (!inventory) inventory = FindFirstObjectByType<InventoryLite>();
+        }
+
+
         if (toastRoot) toastRoot.SetActive(false);
         if (toastText) toastText.text = message;
 
