@@ -435,7 +435,7 @@ MonoBehaviour:
   breathBehindSfx: {fileID: 8141193221577241580}
   ambientSfx: {fileID: 0}
   lookAngleThreshold: 20
-  maxWaitForLook: 5
+  maxWaitForLook: 10
   holdAfterSeen: 0.4
   endDemoUI: {fileID: 0}
   freezeOnEnd: 1

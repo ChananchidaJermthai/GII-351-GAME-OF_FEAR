@@ -22,7 +22,7 @@ ModelImporter:
     animationDoRetargetingWarnings: 0
     importAnimatedCustomProperties: 0
     importConstraints: 0
-    animationCompression: 1
+    animationCompression: 3
     animationRotationError: 0.5
     animationPositionError: 0.5
     animationScaleError: 0.5
@@ -83,7 +83,57 @@ ModelImporter:
   humanDescription:
     serializedVersion: 3
     human: []
-    skeleton: []
+    skeleton:
+    - name: SK_Corpse(Clone)
+      parentName: 
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: SK_Corpse
+      parentName: SK_Corpse(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: -0, z: -0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Character001Hub001
+      parentName: SK_Corpse(Clone)
+      position: {x: 2.2737366e-14, y: 0.4489593, z: 0.7853471}
+      rotation: {x: 0.49999997, y: -0.5, z: -0.4999999, w: 0.5000001}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Character001Hub001Bone001
+      parentName: Character001Hub001
+      position: {x: -0.1611964, y: -0.014368412, z: 0.000000013411725}
+      rotation: {x: 0.00000008195638, y: 0.000000059604638, z: -0.46762395, w: 0.8839275}
+      scale: {x: 1, y: 0.99999994, z: 1}
+    - name: Character001Hub001Bone001Bone001
+      parentName: Character001Hub001Bone001
+      position: {x: -0.06960457, y: 0.010183343, z: -0.000000007843726}
+      rotation: {x: -0.00000003785519, y: -0.00000013076618, z: -0.8660254, w: 0.5}
+      scale: {x: 1.0000001, y: 1, z: 1}
+    - name: Jaw_down
+      parentName: Character001Hub001Bone001Bone001
+      position: {x: 0.3366261, y: 0.97927076, z: 0.00000003832962}
+      rotation: {x: 0.6830127, y: 0.18301275, z: -0.6830127, w: 0.18301275}
+      scale: {x: 1, y: 1, z: 1.0000001}
+    - name: Character001Hub001Bone001Bone002
+      parentName: Character001Hub001Bone001
+      position: {x: -0.14116386, y: 0.07026706, z: 0.03897293}
+      rotation: {x: 0.0620957, y: 0.18347979, z: -0.6937144, w: 0.6937144}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Character001Hub001Bone001Bone003
+      parentName: Character001Hub001Bone001
+      position: {x: -0.14116386, y: 0.07026704, z: -0.038973007}
+      rotation: {x: -0.062095713, y: -0.1834799, z: -0.6937143, w: 0.6937144}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Eyes
+      parentName: Character001Hub001Bone001
+      position: {x: 0.61015564, y: -0.7709788, z: 0.00000028130495}
+      rotation: {x: -0.5, y: 0.50000006, z: 0.5, w: 0.50000006}
+      scale: {x: 1, y: 1, z: 1.0000001}
+    - name: Jaw_up
+      parentName: Character001Hub001Bone001
+      position: {x: 0.61015564, y: -0.7709788, z: 0.00000028130495}
+      rotation: {x: -0.5, y: 0.50000006, z: 0.5, w: 0.50000006}
+      scale: {x: 1, y: 1, z: 1.0000001}
     armTwist: 0.5
     foreArmTwist: 0.5
     upperLegTwist: 0.5
@@ -100,7 +150,7 @@ ModelImporter:
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 2
   humanoidOversampling: 1
-  avatarSetup: 0
+  avatarSetup: 1
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
   importBlendShapeDeformPercent: 1
   remapMaterialsIfMaterialImportModeIsNone: 0

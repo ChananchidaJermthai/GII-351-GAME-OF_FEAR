@@ -45,10 +45,19 @@ public class EndDemoEventManager : MonoBehaviour
     [Tooltip("Canvas/Panel สำหรับจบเดโม")]
     public GameObject endDemoUI;
     public bool freezeOnEnd = true;
+
+    [Header("UI Delay")]
+    [Tooltip("หน่วงเวลาก่อนแสดง UI หลังโดน Jump Scare (วินาที)")]
+    public float delayBeforeUI = 0.8f;   // ปรับใน Inspector ได้
+
     [Tooltip("ชื่อ Scene ที่จะโหลดหลังจบเดโม")]
     public string endCreditsSceneName = "EndCredits";
     [Tooltip("เวลาหน่วงก่อนโหลดฉาก (วินาที, ใช้ unscaled time)")]
     public float waitBeforeLoad = 4f;
+
+    [Header("Audio Fade")]
+    [Tooltip("ระยะเวลาในการเฟดเสียงทั้งหมดหลังจบเดโม")]
+    public float fadeOutDuration = 1.0f;   // ← ปรับได้ใน Inspector
 
     [Header("Options")]
     [Tooltip("ซ่อนผีทั้งหมดตอนเริ่มเกม")]
@@ -181,9 +190,13 @@ public class EndDemoEventManager : MonoBehaviour
             player.LockControl(true);
         }
 
-        // 9) ขึ้น EndDemo UI + Freeze เกม
+        // 9) ดีเลย์ก่อนให้ UI แสดง
+        yield return new WaitForSeconds(delayBeforeUI);
+
+        // UI ขึ้น
         if (endDemoUI != null)
             endDemoUI.SetActive(true);
+
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -192,7 +205,9 @@ public class EndDemoEventManager : MonoBehaviour
             Time.timeScale = 0f;
 
         // 10) Fade out เสียงทั้งหมด
-        yield return StartCoroutine(FadeOutAllAudio(0.4f));
+        
+        yield return StartCoroutine(FadeOutAllAudio(fadeOutDuration));
+
 
         if (freezeOnEnd)
             Time.timeScale = 0f;

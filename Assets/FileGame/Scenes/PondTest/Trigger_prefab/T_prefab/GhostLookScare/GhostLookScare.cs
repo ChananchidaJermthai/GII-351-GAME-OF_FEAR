@@ -1,162 +1,220 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class DoorGhostLookScare : MonoBehaviour
+/// <summary>
+/// Flow:
+/// 1) Player เดินเข้าทริกเกอร์ = เปิดประตู เห็นผี
+/// 2) เมื่อผู้เล่นหันกล้องไปมองผี (เมาส์หมุนไปโดนผี)
+/// 3) ดับไฟทั้งหมด
+/// 4) ผีหายไป
+/// 5) ไฟกลับมาติด
+/// </summary>
+[RequireComponent(typeof(Collider))]
+public class GhostLookScare : MonoBehaviour
 {
-    [Header("=== References ===")]
-    [Tooltip("กล้องของผู้เล่น (ไม่ตั้งจะดึง Camera.main อัตโนมัติ)")]
+    [Header("=== Player / Camera ===")]
+    [Tooltip("กล้องของผู้เล่น (ถ้าไม่เซ็ต จะใช้ Camera.main)")]
     [SerializeField] private Camera playerCamera;
 
-    [Tooltip("รากของผี (GameObject หลักของผี)")]
+    [Header("=== Ghost ===")]
+    [Tooltip("รากของผีตัวนี้ (GameObject หลักที่เปิด/ปิดตอนหลอก)")]
     [SerializeField] private GameObject ghostRoot;
 
-    [Tooltip("ไฟทั้งหมดที่จะเปิด/ปิด ระหว่างเหตุการณ์")]
+    [Tooltip("เริ่มเกมให้ซ่อนผีก่อนหรือไม่")]
+    [SerializeField] private bool hideGhostOnStart = true;
+
+    [Header("=== Lights ===")]
+    [Tooltip("ไฟทั้งหมดที่ต้องการให้ดับ/ติดระหว่างเหตุการณ์")]
     [SerializeField] private List<Light> lightsToToggle = new List<Light>();
 
     [Header("=== Look Detection ===")]
-    [Tooltip("ระยะสูงสุดที่ถือว่ายังมองเห็นผีได้")]
+    [Tooltip("ระยะสูงสุดที่นับว่ายังมองผีได้ (เมตร)")]
     [SerializeField] private float maxLookDistance = 20f;
 
-    [Tooltip("ความแคบของมุมมอง (ค่า Dot ใกล้ 1 คือ ต้องมองตรงมาก)")]
-    [Range(0.8f, 1f)]
-    [SerializeField] private float viewDotThreshold = 0.97f;
+    [Tooltip("มุมองศาสูงสุดที่ถือว่า \"มองตรง\" ไปหาผีแล้ว (ยิ่งน้อย = ต้องเล็งตรงมาก)")]
+    [Range(1f, 60f)]
+    [SerializeField] private float lookAngleThreshold = 10f;
 
-    [Tooltip("LayerMask สำหรับ Raycast (ให้ใส่ Layer ของผีและสิ่งที่บังผี)")]
-    [SerializeField] private LayerMask raycastMask = ~0;
+    [Tooltip("ต้องใช้ Raycast ตรวจโดน Collider ของผีด้วยหรือไม่ (แนะนำให้ผีมี Collider)")]
+    [SerializeField] private bool useRaycastHitCheck = true;
+
+    [Tooltip("LayerMask สำหรับ Raycast (ใช้เฉพาะตอน useRaycastHitCheck = true)")]
+    [SerializeField] private LayerMask raycastMask = Physics.DefaultRaycastLayers;
 
     [Header("=== Timing ===")]
-    [Tooltip("หน่วงเวลาก่อนดับไฟ (ตอนมองโดนผีแล้ว)")]
-    [SerializeField] private float delayBeforeLightsOff = 0.1f;
+    [Tooltip("ดีเลย์เล็กน้อยหลังจากมองผี ก่อนดับไฟ")]
+    [SerializeField] private float delayBeforeLightsOff = 0.05f;
 
-    [Tooltip("ระยะเวลาที่ไฟดับก่อนกลับมาติดอีกครั้ง")]
-    [SerializeField] private float lightOffDuration = 0.8f;
+    [Tooltip("ระยะเวลาที่ไฟดับ ก่อนที่จะกลับมาติดใหม่")]
+    [SerializeField] private float lightOffDuration = 0.6f;
 
-    [Header("=== Audio ===")]
-    [Tooltip("AudioSource ที่จะใช้เล่นเสียง")]
+    [Header("=== Audio (ถ้ามี) ===")]
+    [Tooltip("AudioSource สำหรับเล่นเสียงไฟดับ/ไฟติด (ถ้าไม่เซ็ต จะดึงจากตัวเอง)")]
     [SerializeField] private AudioSource audioSource;
 
-    [Tooltip("เสียงตอนดับไฟ")]
+    [Tooltip("เสียงตอนดับไฟ (Optional)")]
     [SerializeField] private AudioClip powerOffClip;
 
-    [Tooltip("เสียงตอนไฟกลับมาติด (ถ้าไม่มีก็ปล่อยว่างได้)")]
+    [Tooltip("เสียงตอนไฟกลับมาติด (Optional)")]
     [SerializeField] private AudioClip powerOnClip;
 
     [Header("=== Options ===")]
-    [Tooltip("ให้เหตุการณ์นี้เล่นได้แค่ครั้งเดียวหรือไม่")]
+    [Tooltip("ให้เหตุการณ์นี้เล่นได้ครั้งเดียวเท่านั้น")]
     [SerializeField] private bool oneShot = true;
 
-    private bool eventActivated = false;   // เริ่มเหตุการณ์แล้ว (ผู้อยู่ +รอให้ผู้เล่นมอง)
-    private bool scareDone = false;        // ทำเหตุการณ์ไปแล้ว (กันไม่ให้ซ้ำ)
-    private bool isRunningCoroutine = false;
+    // internal state
+    private bool triggerActivated = false; // เดินเข้าทริกเกอร์แล้ว (ประตูเปิดแล้ว)
+    private bool scareDone = false;       // เหตุการณ์นี้จบไปแล้ว
+    private bool isRunning = false;       // ป้องกันไม่ให้ Coroutine ซ้อนกัน
+
+    private Collider triggerCollider;
 
     private void Awake()
     {
-        // ดึงกล้องอัตโนมัติถ้าไม่ตั้ง
+        triggerCollider = GetComponent<Collider>();
+        triggerCollider.isTrigger = true;
+
         if (playerCamera == null)
         {
             playerCamera = Camera.main;
         }
 
-        // ดึง AudioSource จากตัวเอง ถ้าไม่ตั้ง
         if (audioSource == null)
         {
             audioSource = GetComponent<AudioSource>();
         }
 
-        // ผีเริ่มต้นเป็นปิดไว้ (ยังไม่เปิดประตู)
-        if (ghostRoot != null)
+        if (hideGhostOnStart && ghostRoot != null)
         {
             ghostRoot.SetActive(false);
         }
 
-        // ถ้าไม่ตั้ง LayerMask เลย ให้ยิงโดนทุกอย่าง
-        if (raycastMask.value == 0)
+        if (useRaycastHitCheck && raycastMask.value == 0)
         {
-            raycastMask = ~0;
+            // ถ้าไม่ตั้ง mask เลย ให้ใช้ default layers
+            raycastMask = Physics.DefaultRaycastLayers;
         }
     }
 
-    /// <summary>
-    /// เมื่อผู้เล่นเดินเข้าทริกเกอร์ที่หน้าประตู = ถือว่าเปิดประตูเจอผี
-    /// </summary>
     private void OnTriggerEnter(Collider other)
     {
-        if (eventActivated) return;
-        if (oneShot && scareDone) return;
-
         if (!other.CompareTag("Player")) return;
 
-        eventActivated = true;
+        // ถ้า oneShot และเคยเล่นไปแล้ว → ไม่ต้องทำอีก
+        if (oneShot && scareDone)
+            return;
 
-        // เปิดผีให้เห็นทันทีเมื่อเข้าทริกเกอร์ (เปิดประตู)
+        // ถ้าเคย Activated ไปแล้ว (กำลังรอให้มองผี) → ไม่ต้องเริ่มซ้ำ
+        if (triggerActivated)
+            return;
+
+        triggerActivated = true;
+
+        // เปิดผีให้เห็นเมื่อประตูเปิด (เดินเข้าทริกเกอร์)
         if (ghostRoot != null)
         {
             ghostRoot.SetActive(true);
         }
+        else
+        {
+            Debug.LogWarning("GhostLookScareSimple: ghostRoot ยังไม่ได้เซ็ต");
+        }
+
+        // เผื่อ playerCamera ยังไม่ถูก Assign พยายามหาอีกครั้งจาก Player
+        if (playerCamera == null)
+        {
+            Camera cam = other.GetComponentInChildren<Camera>();
+            if (cam != null)
+            {
+                playerCamera = cam;
+            }
+        }
+
+        // Debug.Log("GhostLookScareSimple: Trigger entered, ghost appears.");
     }
 
     private void Update()
     {
-        // ยังไม่เริ่มเหตุการณ์ / หรือจบไปแล้ว = ไม่ต้องเช็กอะไร
-        if (!eventActivated || scareDone || isRunningCoroutine)
+        // ยังไม่เดินเข้าทริกเกอร์ / เคยเล่นจบแล้ว / กำลังรัน Coroutine → ไม่ทำอะไร
+        if (!triggerActivated || scareDone || isRunning)
             return;
 
-        if (playerCamera == null || ghostRoot == null)
+        if (ghostRoot == null || playerCamera == null)
             return;
 
-        // คำนวณเวคเตอร์จากกล้องไปหาผี
+        // ถ้าผีโดนปิดไปแล้ว (ด้วยเหตุผลอื่น) ก็ไม่ต้องเช็กต่อ
+        if (!ghostRoot.activeInHierarchy)
+            return;
+
+        // ตรวจว่า "มองไปทางผี" หรือยัง
+
+        // 1) ระยะ
         Vector3 toGhost = ghostRoot.transform.position - playerCamera.transform.position;
         float distance = toGhost.magnitude;
-
         if (distance > maxLookDistance)
-            return; // ผีอยู่ไกลเกินไป
+            return;
 
-        Vector3 dirToGhost = toGhost / distance;
+        // 2) มุมมอง
+        Vector3 dirToGhost = toGhost / Mathf.Max(distance, 0.0001f);
+        float angle = Vector3.Angle(playerCamera.transform.forward, dirToGhost);
+        if (angle > lookAngleThreshold)
+            return;
 
-        // เช็กว่ากล้องหันไปทางผีใกล้พอไหม (Dot ใกล้ 1 = หันตรง)
-        float dot = Vector3.Dot(playerCamera.transform.forward, dirToGhost);
-        if (dot < viewDotThreshold)
-            return; // ยังมองไม่ตรงพอ
-
-        // ยิง Raycast จากกล้องไปด้านหน้า เช็กว่าชนผีจริงไหม (มีของบังหรือเปล่า)
-        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-        if (Physics.Raycast(ray, out RaycastHit hit, maxLookDistance, raycastMask, QueryTriggerInteraction.Ignore))
+        // 3) Raycast (ถ้าเลือกใช้)
+        if (useRaycastHitCheck)
         {
-            // ใช้ IsChildOf เผื่อโครงสร้างผีมีหลายชั้นใน Hierarchy
-            if (hit.collider != null && ghostRoot != null && hit.collider.transform.IsChildOf(ghostRoot.transform))
+            Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+            if (Physics.Raycast(ray, out RaycastHit hit, maxLookDistance, raycastMask, QueryTriggerInteraction.Ignore))
             {
-                // เริ่มเหตุการณ์หลอก
-                StartCoroutine(DoGhostScareRoutine());
+                // ถ้าชนผีจริง ๆ (Collider ของผีหรือ child ของมัน)
+                if (hit.collider != null && ghostRoot != null && hit.collider.transform.IsChildOf(ghostRoot.transform))
+                {
+                    StartCoroutine(DoScareRoutine());
+                }
+                else
+                {
+                    // Ray ไม่ชนผี = อาจมีของบังอยู่ เช่น กำแพง / ท่อ
+                    return;
+                }
             }
+            else
+            {
+                // ไม่โดนอะไรเลย
+                return;
+            }
+        }
+        else
+        {
+            // ไม่ใช้ Raycast → แค่เช็กมุมมองพอ
+            StartCoroutine(DoScareRoutine());
         }
     }
 
     /// <summary>
-    /// ดับไฟ → ผีหาย → เสียงดับไฟ → รอ → ไฟกลับมา → (เล่นได้ครั้งเดียวถ้า oneShot)
+    /// ดับไฟ → ผีหาย → รอ → ไฟกลับมาติด → (ปิดทริกเกอร์ถ้า oneShot)
     /// </summary>
-    private IEnumerator DoGhostScareRoutine()
+    private IEnumerator DoScareRoutine()
     {
-        isRunningCoroutine = true;
+        if (isRunning) yield break;
 
-        // กันซ้ำ
+        isRunning = true;
         scareDone = true;
-        eventActivated = false;
 
-        // หน่วงนิดหน่อยก่อนดับไฟ (ทำให้รู้สึกว่ามองผีปุ๊บ ไฟค่อยวูบ)
+        // หน่วงเล็กน้อยก่อนดับไฟ (กันอาการกระตุก)
         if (delayBeforeLightsOff > 0f)
             yield return new WaitForSeconds(delayBeforeLightsOff);
 
-        // ดับไฟ
+        // ดับไฟทั้งหมด
         SetLightsState(false);
 
-        // เล่นเสียงดับไฟ
+        // เสียงไฟดับ
         if (audioSource != null && powerOffClip != null)
         {
             audioSource.PlayOneShot(powerOffClip);
         }
 
-        // ทำให้ผีหายไป
+        // ผีหายไป
         if (ghostRoot != null)
         {
             ghostRoot.SetActive(false);
@@ -166,26 +224,29 @@ public class DoorGhostLookScare : MonoBehaviour
         if (lightOffDuration > 0f)
             yield return new WaitForSeconds(lightOffDuration);
 
-        // เปิดไฟกลับมา
+        // ไฟกลับมาติด
         SetLightsState(true);
 
-        // เสียงไฟกลับมาติด (จะใส่ / ไม่ใส่ก็ได้)
+        // เสียงไฟกลับมาติด
         if (audioSource != null && powerOnClip != null)
         {
             audioSource.PlayOneShot(powerOnClip);
         }
 
-        // ถ้าให้เล่นครั้งเดียว ปิดสคริปต์ไปเลย
+        // เล่นรอบเดียวแล้วจบ
         if (oneShot)
         {
+            if (triggerCollider != null)
+                triggerCollider.enabled = false;
+
             enabled = false;
         }
 
-        isRunningCoroutine = false;
+        isRunning = false;
     }
 
     /// <summary>
-    /// เปิด/ปิดไฟทั้งหมดที่กำหนดใน Inspector
+    /// เปิด/ปิดไฟทั้งหมดตาม state
     /// </summary>
     private void SetLightsState(bool state)
     {

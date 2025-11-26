@@ -224,6 +224,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7503581955701160278, guid: 7a23966deb1889541b2243ee63b1e984, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7826154127154079095, guid: 7a23966deb1889541b2243ee63b1e984, type: 3}
       propertyPath: m_Name
       value: T-Pose
