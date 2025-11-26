@@ -5,9 +5,9 @@ public class LoadStart : MonoBehaviour
 {
     private void Awake()
     {
-        Time.timeScale = 1.0f;
-        Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        Time.timeScale = 1.0f;
     }
     public void Play()
     {

@@ -9,8 +9,16 @@ public class TitleFadeIn : MonoBehaviour
     public float duration = 2.5f;
     public AudioSource revealSound;
 
+    void Awake()
+    {
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        
+    }
     void Start()
     {
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
         StartCoroutine(FadeIn());
     }
 
