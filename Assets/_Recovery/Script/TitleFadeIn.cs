@@ -13,7 +13,6 @@ public class TitleFadeIn : MonoBehaviour
     {
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-        
     }
     void Start()
     {
